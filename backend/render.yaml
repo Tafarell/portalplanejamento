@@ -1,0 +1,28 @@
+services:
+  - type: web
+    name: portal-bi-backend
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /api/health
+    envVars:
+      - key: SECRET_KEY
+        sync: false
+      - key: DATABASE_URL
+        sync: false
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: OPENAI_MODEL
+        value: openai/gpt-4o
+      - key: OPENAI_BASE_URL
+        value: https://openrouter.ai/api/v1
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SERVICE_KEY
+        sync: false
+      - key: SUPABASE_BUCKET_COVERS
+        value: covers
+      - key: SUPABASE_BUCKET_PARQUET
+        value: parquet
+      - key: FRONTEND_URL
+        sync: false

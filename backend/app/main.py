@@ -1,7 +1,5 @@
-import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles
 from app.config import settings
 from app.database import Base, engine
 from app.models import *  # garante que todos os models são importados antes do create_all
@@ -25,12 +23,10 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Criar tabelas e diretórios
+# Criar tabelas no banco e seed do admin
 @app.on_event("startup")
 def startup():
     Base.metadata.create_all(bind=engine)
-    os.makedirs(settings.UPLOAD_DIR, exist_ok=True)
-    os.makedirs(settings.PARQUET_DIR, exist_ok=True)
     _seed_admin()
 
 def _seed_admin():
@@ -52,9 +48,6 @@ def _seed_admin():
             print("✅ Usuário admin criado: admin@portalbi.com / Admin@123")
     finally:
         db.close()
-
-# Arquivos estáticos (uploads)
-app.mount("/uploads", StaticFiles(directory=settings.UPLOAD_DIR), name="uploads")
 
 # Routers
 app.include_router(auth.router)
