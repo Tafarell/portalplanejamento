@@ -11,9 +11,12 @@ class Settings(BaseSettings):
     # Database (Supabase PostgreSQL — Transaction Mode porta 6543)
     DATABASE_URL: str = "postgresql://postgres:senha@db.xxxx.supabase.co:5432/postgres"
 
-    # OpenAI
+    # OpenAI / OpenRouter
     OPENAI_API_KEY: str = ""
-    OPENAI_MODEL: str = "gpt-4o"
+    OPENAI_MODEL: str = "openai/gpt-4o"
+    # Para OpenRouter: https://openrouter.ai/api/v1
+    # Para OpenAI direto: deixe vazio
+    OPENAI_BASE_URL: str = "https://openrouter.ai/api/v1"
 
     # Supabase Storage
     SUPABASE_URL: str = ""           # https://xxxx.supabase.co

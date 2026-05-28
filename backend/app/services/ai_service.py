@@ -3,7 +3,12 @@ from openai import OpenAI
 from app.config import settings
 from app.services.storage_service import download_parquet
 
-client = OpenAI(api_key=settings.OPENAI_API_KEY)
+# Suporte a OpenRouter e OpenAI — configurado via OPENAI_BASE_URL
+_client_kwargs = {"api_key": settings.OPENAI_API_KEY}
+if settings.OPENAI_BASE_URL:
+    _client_kwargs["base_url"] = settings.OPENAI_BASE_URL
+
+client = OpenAI(**_client_kwargs)
 
 SYSTEM_PROMPT = """Você é um assistente de Business Intelligence especializado em análise de dados.
 Você tem acesso a dados de dashboards empresariais e pode responder perguntas sobre indicadores,
