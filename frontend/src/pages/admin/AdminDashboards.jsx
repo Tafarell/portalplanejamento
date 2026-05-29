@@ -136,7 +136,7 @@ export default function AdminDashboards() {
           <div className="flex items-center gap-2">
             <button onClick={() => setShowCatPanel(v => !v)} className="flex items-center gap-1.5 text-sm text-gray-600 hover:text-gray-900 border border-gray-200 rounded-lg px-3 py-2 hover:bg-gray-50 transition-colors">
               <Settings className="w-4 h-4" />
-              Submenus
+              Categorias
             </button>
             <button onClick={openCreate} className="btn-primary flex items-center gap-2">
               <Plus className="w-4 h-4" /> Novo Workspace
@@ -148,7 +148,7 @@ export default function AdminDashboards() {
         {showCatPanel && (
           <div className="card p-4 mb-5 border border-blue-100 bg-blue-50/30">
             <div className="flex items-center justify-between mb-3">
-              <h2 className="font-semibold text-gray-800 text-sm">Gerenciar Submenus</h2>
+              <h2 className="font-semibold text-gray-800 text-sm">Gerenciar Categorias</h2>
               <button onClick={() => { setShowCatPanel(false); setCatEditId(null); setCatForm(CAT_EMPTY) }} className="text-gray-400 hover:text-gray-600">
                 <X className="w-4 h-4" />
               </button>
@@ -171,7 +171,7 @@ export default function AdminDashboards() {
 
             {/* Add/Edit form */}
             <form onSubmit={saveCat} className="border-t border-gray-200 pt-3">
-              <p className="text-xs font-semibold text-gray-500 uppercase mb-2">{catEditId ? 'Editar submenu' : 'Novo submenu'}</p>
+              <p className="text-xs font-semibold text-gray-500 uppercase mb-2">{catEditId ? 'Editar categoria' : 'Nova categoria'}</p>
               <div className="flex flex-wrap gap-2 items-end">
                 <div>
                   <label className="text-xs text-gray-500 block mb-1">Nome</label>

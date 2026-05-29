@@ -5,6 +5,38 @@ import Layout from '../components/Layout'
 import AIChat from '../components/AIChat'
 import { ArrowLeft, Bot, X, ExternalLink } from 'lucide-react'
 
+function normalizeEmbedUrl(url) {
+  if (!url) return ''
+
+  try {
+    const parsed = new URL(url)
+    const parts = parsed.pathname.split('/').filter(Boolean)
+
+    if (
+      parsed.hostname.includes('app.powerbi.com') &&
+      parts.includes('reports') &&
+      !parsed.pathname.includes('reportEmbed')
+    ) {
+      const reportId = parts[parts.indexOf('reports') + 1]
+      const groupIndex = parts.indexOf('groups')
+      const groupId = groupIndex >= 0 && parts[groupIndex + 1] !== 'me'
+        ? parts[groupIndex + 1]
+        : ''
+      const embed = new URL('/reportEmbed', parsed.origin)
+      if (reportId) embed.searchParams.set('reportId', reportId)
+      if (groupId) embed.searchParams.set('groupId', groupId)
+      parsed.searchParams.forEach((value, key) => {
+        if (!embed.searchParams.has(key)) embed.searchParams.set(key, value)
+      })
+      return embed.toString()
+    }
+  } catch {
+    return url
+  }
+
+  return url
+}
+
 export default function DashboardView() {
   const { id } = useParams()
   const navigate = useNavigate()
@@ -16,6 +48,9 @@ export default function DashboardView() {
     api.get(`/dashboards/${id}`).then(r => setDashboard(r.data)).catch(() => navigate('/')).finally(() => setLoading(false))
   }, [id])
 
+  const sourceUrl = dashboard?.embed_url?.trim()
+  const embedUrl = normalizeEmbedUrl(sourceUrl)
+
   if (loading) return (
     <Layout>
       <div className="flex items-center justify-center h-full">
@@ -26,7 +61,7 @@ export default function DashboardView() {
 
   return (
     <Layout>
-      <div className="flex flex-col h-full">
+      <div className="flex flex-col h-full min-h-0">
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-3 bg-white border-b border-gray-200 flex-shrink-0">
           <div className="flex items-center gap-3">
@@ -45,7 +80,7 @@ export default function DashboardView() {
               <Bot className="w-4 h-4" />
               <span className="hidden sm:inline">Assistente IA</span>
             </button>
-            <a href={dashboard?.embed_url} target="_blank" rel="noopener noreferrer"
+            <a href={sourceUrl || embedUrl} target="_blank" rel="noopener noreferrer"
               className="p-1.5 text-gray-400 hover:text-gray-700 rounded-lg hover:bg-gray-100">
               <ExternalLink className="w-5 h-5" />
             </a>
@@ -53,13 +88,23 @@ export default function DashboardView() {
         </div>
 
         {/* Body */}
-        <div className="flex flex-1 overflow-hidden">
-          {/* Iframe */}
-          <div className="flex-1 relative">
-            <iframe src={dashboard?.embed_url} title={dashboard?.name}
-              className="w-full h-full border-0"
-              allowFullScreen
-              sandbox="allow-scripts allow-same-origin allow-popups allow-forms allow-top-navigation" />
+        <div className="flex flex-1 min-h-0 overflow-hidden">
+          <div className="flex-1 relative min-h-0 bg-white">
+            {embedUrl ? (
+              <iframe
+                key={embedUrl}
+                src={embedUrl}
+                title={dashboard?.name}
+                className="absolute inset-0 w-full h-full border-0"
+                allow="fullscreen; clipboard-read; clipboard-write"
+                allowFullScreen
+                referrerPolicy="strict-origin-when-cross-origin"
+              />
+            ) : (
+              <div className="flex h-full items-center justify-center px-6 text-center text-gray-500">
+                Este dashboard ainda nao tem uma URL cadastrada.
+              </div>
+            )}
           </div>
 
           {/* AI Panel */}

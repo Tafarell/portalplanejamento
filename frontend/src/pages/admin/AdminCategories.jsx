@@ -74,7 +74,7 @@ export default function AdminCategories() {
   }
 
   const remove = async id => {
-    if (!confirm('Remover este submenu? Workspaces vinculados podem ficar sem aba propria.')) return
+    if (!confirm('Remover esta categoria? Workspaces vinculados podem ficar sem aba propria.')) return
     await api.delete(`/categories/${id}`)
     await fetchCategories()
   }
@@ -84,12 +84,12 @@ export default function AdminCategories() {
       <div className="p-5">
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3 mb-5">
           <div>
-            <h1 className="text-xl font-bold text-gray-900">Submenus</h1>
+            <h1 className="text-xl font-bold text-gray-900">Categorias</h1>
             <p className="text-gray-500 text-sm mt-0.5">Categorias exibidas no Workspace</p>
           </div>
           <div className="relative w-full lg:w-72">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-            <input value={search} onChange={e => setSearch(e.target.value)} className="input pl-9" placeholder="Buscar submenu..." />
+            <input value={search} onChange={e => setSearch(e.target.value)} className="input pl-9" placeholder="Buscar categoria..." />
           </div>
         </div>
 
@@ -139,7 +139,7 @@ export default function AdminCategories() {
               {filtered.length === 0 && (
                 <div className="text-center py-16 text-gray-400">
                   <Layers3 className="w-12 h-12 mx-auto mb-3 opacity-30" />
-                  <p>Nenhum submenu encontrado</p>
+                  <p>Nenhuma categoria encontrada</p>
                 </div>
               )}
             </div>
@@ -148,7 +148,7 @@ export default function AdminCategories() {
           <form onSubmit={save} className="card p-5 h-fit">
             <div className="flex items-center justify-between mb-4">
               <div>
-                <h2 className="font-semibold text-gray-900">{editId ? 'Editar submenu' : 'Novo submenu'}</h2>
+                <h2 className="font-semibold text-gray-900">{editId ? 'Editar categoria' : 'Nova categoria'}</h2>
                 <p className="text-xs text-gray-500 mt-0.5">Use o slug para vincular Workspaces a esta aba.</p>
               </div>
               {editId && (
@@ -183,7 +183,7 @@ export default function AdminCategories() {
 
             <button type="submit" disabled={loading} className="btn-primary w-full flex items-center justify-center gap-2 mt-5">
               <Plus className="w-4 h-4" />
-              {loading ? 'Salvando...' : editId ? 'Salvar submenu' : 'Cadastrar submenu'}
+              {loading ? 'Salvando...' : editId ? 'Salvar categoria' : 'Cadastrar categoria'}
             </button>
           </form>
         </div>

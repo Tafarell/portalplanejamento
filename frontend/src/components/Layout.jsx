@@ -10,8 +10,8 @@ const navItems = [
 ]
 
 const adminItems = [
-  { to: '/admin/dashboards', label: 'Workspaces', icon: BarChart3 },
-  { to: '/admin/categories', label: 'Submenus', icon: Layers3 },
+  { to: '/admin/dashboards', label: 'Cadastro', icon: BarChart3 },
+  { to: '/admin/categories', label: 'Categorias', icon: Layers3 },
   { to: '/admin/grupos', label: 'Grupos & Contratos', icon: Building2 },
   { to: '/admin/users', label: 'Usuários', icon: Users },
   { to: '/admin/permissions', label: 'Permissões', icon: Shield },
@@ -202,7 +202,7 @@ export default function Layout({ children }) {
           </button>
         </header>
 
-        <main className="flex-1 overflow-y-auto">
+        <main className="flex-1 overflow-y-auto min-h-0">
           {children}
         </main>
       </div>
