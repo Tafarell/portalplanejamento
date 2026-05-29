@@ -137,6 +137,7 @@ def chat_with_powerbi(
     client_id: str,
     client_secret: str,
     workspace_id: str = None,
+    schema_context: str = None,
     conversation_history: list = None,
     max_tool_iterations: int = 4,
 ) -> dict:
@@ -155,8 +156,8 @@ def chat_with_powerbi(
 
     # 1. Token + schema
     token = get_pbi_token(tenant_id, client_id, client_secret)
-    schema = get_dataset_schema(dataset_id, token, workspace_id)
 
+    schema = schema_context or "Schema não fornecido — explore as tabelas com DAX (ex: EVALUATE TOPN(5, NomeDaTabela)) para descobrir os dados disponíveis."
     system_content = PBI_SYSTEM_PROMPT.format(schema=schema)
 
     messages = [{"role": "system", "content": system_content}]

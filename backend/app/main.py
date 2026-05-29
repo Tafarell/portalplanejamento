@@ -45,6 +45,7 @@ def _run_migrations():
         "ALTER TABLE dashboards ALTER COLUMN category TYPE VARCHAR(50) USING category::VARCHAR",
         "UPDATE dashboards SET category = LOWER(category) WHERE category IS NOT NULL AND category <> LOWER(category)",
         "ALTER TABLE pbi_connections ADD COLUMN IF NOT EXISTS workspace_id VARCHAR(300)",
+        "ALTER TABLE pbi_connections ADD COLUMN IF NOT EXISTS schema_context VARCHAR(5000)",
     ]
     with engine.connect() as conn:
         for sql in migrations:

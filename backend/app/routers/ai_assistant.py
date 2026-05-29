@@ -54,6 +54,7 @@ def chat(request: ChatRequest, db: Session = Depends(get_db),
                 tenant_id=pbi_conn.tenant_id,
                 client_id=pbi_conn.client_id,
                 client_secret=pbi_conn.client_secret,
+                schema_context=pbi_conn.schema_context,
                 conversation_history=history,
             )
         except Exception as e:

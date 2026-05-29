@@ -38,47 +38,15 @@ def get_pbi_token(tenant_id: str, client_id: str, client_secret: str) -> str:
         return data["access_token"]
 
 
-def get_dataset_schema(dataset_id: str, token: str, workspace_id: Optional[str] = None) -> str:
+def test_connection(dataset_id: str, token: str, workspace_id: Optional[str] = None) -> dict:
     """
-    Retorna uma representação textual do schema (tabelas + colunas + medidas)
-    adequada para ser inserida no system prompt da IA.
-    Suporta datasets globais e workspace-scoped (Fabric/OneLake).
+    Testa a conexão executando uma query DAX simples.
+    Retorna { "ok": True/False, "error": str|None }
     """
-    if workspace_id:
-        url = PBI_TABLES_URL.format(workspace_id=workspace_id, dataset_id=dataset_id)
-    else:
-        url = PBI_TABLES_URL_GLOBAL.format(dataset_id=dataset_id)
-
-    with httpx.Client(timeout=_TIMEOUT) as client:
-        resp = client.get(url, headers={"Authorization": f"Bearer {token}"})
-        # Fallback: se workspace-scoped falhar, tenta global
-        if resp.status_code >= 400 and workspace_id:
-            url = PBI_TABLES_URL_GLOBAL.format(dataset_id=dataset_id)
-            resp = client.get(url, headers={"Authorization": f"Bearer {token}"})
-        resp.raise_for_status()
-        tables = resp.json().get("value", [])
-
-    if not tables:
-        return "Nenhuma tabela encontrada no dataset."
-
-    lines = ["## Esquema do Dataset Power BI\n"]
-    for t in tables:
-        tname = t.get("name", "?")
-        lines.append(f"### Tabela: `{tname}`")
-
-        cols = t.get("columns", [])
-        if cols:
-            col_list = ", ".join(f"`{c['name']}` ({c.get('dataType','?')})" for c in cols)
-            lines.append(f"**Colunas:** {col_list}")
-
-        measures = t.get("measures", [])
-        if measures:
-            m_list = ", ".join(f"`{m['name']}`" for m in measures)
-            lines.append(f"**Medidas:** {m_list}")
-
-        lines.append("")
-
-    return "\n".join(lines)
+    result = execute_dax_query(dataset_id, "EVALUATE ROW(\"Status\", \"Connected\")", token, workspace_id)
+    if result.get("error"):
+        return {"ok": False, "error": result["error"]}
+    return {"ok": True, "error": None}
 
 
 def execute_dax_query(dataset_id: str, dax_query: str, token: str, workspace_id: Optional[str] = None) -> dict:

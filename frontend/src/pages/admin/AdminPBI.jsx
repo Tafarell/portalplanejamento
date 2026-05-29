@@ -4,7 +4,7 @@ import Layout from '../../components/Layout'
 import ConfirmDialog from '../../components/ConfirmDialog'
 import { Zap, CheckCircle2, XCircle, Loader2, Eye, EyeOff, Trash2, RefreshCw, Database } from 'lucide-react'
 
-const EMPTY = { name: 'Conexão Power BI', dataset_id: '', workspace_id: '', tenant_id: '', client_id: '', client_secret: '', is_active: true }
+const EMPTY = { name: 'Conexão Power BI', dataset_id: '', workspace_id: '', tenant_id: '', client_id: '', client_secret: '', schema_context: '', is_active: true }
 
 export default function AdminPBI() {
   const [form, setForm]         = useState(EMPTY)
@@ -127,6 +127,19 @@ export default function AdminPBI() {
           {field('tenant_id', 'Tenant ID (Directory ID)', 'xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx')}
           {field('client_id', 'Client ID (Application ID)', 'xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx')}
           {field('client_secret', existing ? 'Client Secret (deixe em branco para manter)' : 'Client Secret', '••••••••••••••••', 'secret')}
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1.5">
+              Schema / Contexto do modelo <span className="text-gray-400 font-normal">(descreva as tabelas e medidas para a IA)</span>
+            </label>
+            <textarea
+              value={form.schema_context}
+              onChange={e => setForm({ ...form, schema_context: e.target.value })}
+              className="input resize-none font-mono text-xs"
+              rows={7}
+              placeholder={`Exemplo:\nTabela: fVendas\n  Colunas: DataVenda, Produto, Valor, Quantidade, ClienteID\n  Medidas: [Total Vendas], [Qtd Pedidos], [Ticket Médio]\n\nTabela: dClientes\n  Colunas: ClienteID, Nome, Grupo, Contrato\n\nTabela: dCalendario\n  Colunas: Data, Ano, Mês, Semana`}
+            />
+          </div>
 
           <label className="flex items-center gap-2.5 p-3 rounded-xl border border-gray-200 cursor-pointer hover:bg-gray-50 transition-colors">
             <input type="checkbox" checked={form.is_active} onChange={e => setForm({ ...form, is_active: e.target.checked })}
