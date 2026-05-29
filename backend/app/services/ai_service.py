@@ -88,25 +88,29 @@ NUNCA use sintaxe invalida:
 
 ## Comparacoes de periodo — sintaxe correta:
 
+IMPORTANTE: Para filtros com funcoes (WEEKNUM, MONTH, etc.), SEMPRE use FILTER(ALL(...)).
+Filtros simples de igualdade (Date = valor) podem ir direto no CALCULATETABLE.
+
 Esta semana vs semana anterior:
 EVALUATE ROW(
-    "Esta Semana", CALCULATE([Chamadas Atendidas], WEEKNUM('dCalendario'[Date]) = WEEKNUM(TODAY()), YEAR('dCalendario'[Date]) = YEAR(TODAY())),
-    "Semana Anterior", CALCULATE([Chamadas Atendidas], WEEKNUM('dCalendario'[Date]) = WEEKNUM(TODAY()) - 1, YEAR('dCalendario'[Date]) = YEAR(TODAY()))
+    "Esta Semana", CALCULATE([Chamadas Atendidas], FILTER(ALL('dCalendario'), WEEKNUM('dCalendario'[Date]) = WEEKNUM(TODAY()) && YEAR('dCalendario'[Date]) = YEAR(TODAY()))),
+    "Semana Anterior", CALCULATE([Chamadas Atendidas], FILTER(ALL('dCalendario'), WEEKNUM('dCalendario'[Date]) = WEEKNUM(TODAY()) - 1 && YEAR('dCalendario'[Date]) = YEAR(TODAY())))
 )
 
 Este mes vs mes anterior:
 EVALUATE ROW(
-    "Este Mes", CALCULATE([Chamadas Atendidas], MONTH('dCalendario'[Date]) = MONTH(TODAY()), YEAR('dCalendario'[Date]) = YEAR(TODAY())),
-    "Mes Anterior", CALCULATE([Chamadas Atendidas], MONTH('dCalendario'[Date]) = MONTH(TODAY()) - 1, YEAR('dCalendario'[Date]) = YEAR(TODAY()))
+    "Este Mes", CALCULATE([Chamadas Atendidas], FILTER(ALL('dCalendario'), MONTH('dCalendario'[Date]) = MONTH(TODAY()) && YEAR('dCalendario'[Date]) = YEAR(TODAY()))),
+    "Mes Anterior", CALCULATE([Chamadas Atendidas], FILTER(ALL('dCalendario'), MONTH('dCalendario'[Date]) = MONTH(TODAY()) - 1 && YEAR('dCalendario'[Date]) = YEAR(TODAY())))
 )
 
 Ontem vs anteontem:
 EVALUATE ROW(
-    "Ontem", CALCULATE([Chamadas Atendidas], 'dCalendario'[Date] = TODAY() - 1),
-    "Anteontem", CALCULATE([Chamadas Atendidas], 'dCalendario'[Date] = TODAY() - 2)
+    "Ontem", CALCULATE([Chamadas Atendidas], FILTER(ALL('dCalendario'), 'dCalendario'[Date] = TODAY() - 1)),
+    "Anteontem", CALCULATE([Chamadas Atendidas], FILTER(ALL('dCalendario'), 'dCalendario'[Date] = TODAY() - 2))
 )
 
-NUNCA use colunas que nao existem no schema como [Semana do Ano], [Mes], [Ano] — use funcoes DAX na coluna Date.
+NUNCA use colunas que nao existem no schema como [Semana do Ano], [Mes], [Ano].
+NUNCA use expressoes booleanas direto no CALCULATE sem FILTER — use FILTER(ALL(Tabela), condicao).
 
 ## Regras gerais:
 - Prefira CALCULATETABLE + ROW para totais com filtro
