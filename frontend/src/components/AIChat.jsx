@@ -25,16 +25,17 @@ function parseChartData(content) {
   const idx = content.indexOf(marker)
   if (idx === -1) return { text: content, chart: null }
   try {
-    let jsonStr = content.slice(idx + marker.length).trim()
-    // Tenta completar JSON truncado
-    if (!jsonStr.endsWith('}')) {
-      // Remove valores incompletos no final do array
-      jsonStr = jsonStr.replace(/,\s*[\d.]*\s*$/, '')
-      if (!jsonStr.endsWith(']')) jsonStr += ']'
-      if (!jsonStr.endsWith('}')) jsonStr += '}'
+    const after = content.slice(idx + marker.length).trim()
+    // Extrai só o objeto JSON (do { ao } correspondente)
+    const start = after.indexOf('{')
+    if (start === -1) return { text: content, chart: null }
+    let depth = 0, end = -1
+    for (let i = start; i < after.length; i++) {
+      if (after[i] === '{') depth++
+      else if (after[i] === '}') { depth--; if (depth === 0) { end = i; break } }
     }
+    const jsonStr = end !== -1 ? after.slice(start, end + 1) : after.slice(start)
     const chart = JSON.parse(jsonStr)
-    // Valida que tem dados suficientes
     if (!chart.labels?.length || !chart.values?.length) return { text: content, chart: null }
     return { text: content.slice(0, idx).trim(), chart }
   } catch {
