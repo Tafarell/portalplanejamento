@@ -25,8 +25,17 @@ function parseChartData(content) {
   const idx = content.indexOf(marker)
   if (idx === -1) return { text: content, chart: null }
   try {
-    const jsonStr = content.slice(idx + marker.length).trim()
+    let jsonStr = content.slice(idx + marker.length).trim()
+    // Tenta completar JSON truncado
+    if (!jsonStr.endsWith('}')) {
+      // Remove valores incompletos no final do array
+      jsonStr = jsonStr.replace(/,\s*[\d.]*\s*$/, '')
+      if (!jsonStr.endsWith(']')) jsonStr += ']'
+      if (!jsonStr.endsWith('}')) jsonStr += '}'
+    }
     const chart = JSON.parse(jsonStr)
+    // Valida que tem dados suficientes
+    if (!chart.labels?.length || !chart.values?.length) return { text: content, chart: null }
     return { text: content.slice(0, idx).trim(), chart }
   } catch {
     return { text: content, chart: null }
