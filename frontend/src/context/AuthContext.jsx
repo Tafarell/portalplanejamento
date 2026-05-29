@@ -9,6 +9,19 @@ export function AuthProvider({ children }) {
   })
   const [loading, setLoading] = useState(false)
 
+  // Atualiza dados do usuário do servidor ao montar (captura mudanças como can_use_ai)
+  useEffect(() => {
+    const token = localStorage.getItem('token')
+    if (!token) return
+    api.get('/auth/me')
+      .then(({ data }) => {
+        const updated = { ...user, ...data }
+        localStorage.setItem('user', JSON.stringify(updated))
+        setUser(updated)
+      })
+      .catch(() => {})
+  }, [])
+
   const login = async (email, password) => {
     const form = new FormData()
     form.append('username', email)
@@ -28,15 +41,4 @@ export function AuthProvider({ children }) {
   }
 
   const isAdmin = () => user?.role === 'admin'
-  const isInternal = () => user?.role === 'admin' || user?.role === 'internal'
-  const canUseAI = () => user?.role === 'admin' || !!user?.can_use_ai
-  const isAuthenticated = () => !!user
-
-  return (
-    <AuthContext.Provider value={{ user, loading, login, logout, isAdmin, isInternal, canUseAI, isAuthenticated }}>
-      {children}
-    </AuthContext.Provider>
-  )
-}
-
-export const useAuth = () => useContext(AuthContext)
+  const isInt

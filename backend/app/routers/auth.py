@@ -32,13 +32,15 @@ def login(request: Request, form_data: OAuth2PasswordRequestForm = Depends(), db
         "access_token": token,
         "token_type": "bearer",
         "user": {"id": user.id, "name": user.name, "email": user.email,
-                 "role": user.role, "client_id": user.client_id, "avatar_url": user.avatar_url}
+                 "role": user.role, "client_id": user.client_id,
+                 "avatar_url": user.avatar_url, "can_use_ai": bool(user.can_use_ai)}
     }
 
 @router.get("/me")
 def me(current_user: User = Depends(get_current_user)):
     return {"id": current_user.id, "name": current_user.name, "email": current_user.email,
-            "role": current_user.role, "client_id": current_user.client_id, "avatar_url": current_user.avatar_url}
+            "role": current_user.role, "client_id": current_user.client_id,
+            "avatar_url": current_user.avatar_url, "can_use_ai": bool(current_user.can_use_ai)}
 
 @router.post("/logout")
 def logout(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
