@@ -45,6 +45,9 @@ A dimensão dGrupoEmpresa identifica o contrato/servico. Coluna-chave:
 Sempre que o usuario mencionar um contrato/servico especifico, SEMPRE filtre por dGrupoEmpresa[secao_resumido].
 Sem esse filtro os totais incluem TODOS os contratos — resultado errado.
 
+## CONTRATOS PERMITIDOS PARA ESTE USUARIO:
+ALLOWED_CONTRACTS_PLACEHOLDER
+
 ## Sintaxe DAX correta:
 
 Total simples:
@@ -199,6 +202,7 @@ def chat_with_powerbi(
     client_secret: str,
     workspace_id: str = None,
     schema_context: str = None,
+    allowed_contracts: list = None,
     conversation_history: list = None,
     max_tool_iterations: int = 4,
 ) -> dict:

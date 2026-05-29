@@ -4,10 +4,11 @@ from pydantic import BaseModel
 from typing import Optional, List
 from app.database import get_db
 from app.models.dashboard import Dashboard
-from app.models.permission import Permission
+from app.models.permission import Permission, PermissionScope
 from app.models.access_log import AccessLog
 from app.models.user import User, UserRole
 from app.models.pbi_connection import PBIConnection
+from app.models.contrato import Contrato
 from app.utils.security import get_current_user
 from app.services.ai_service import chat_with_ai, chat_with_powerbi
 
@@ -21,15 +22,46 @@ class ChatMessage(BaseModel):
 
 class ChatRequest(BaseModel):
     question: str
-    dashboard_id: Optional[int] = None
+    dashboard_id:      Optional[int] = None
+    pbi_connection_id: Optional[int] = None   # qual conexão PBI usar
     conversation_history: Optional[List[ChatMessage]] = []
 
 
 class ChatResponse(BaseModel):
     answer: str
-    dashboard_name: Optional[str] = None
-    pbi_active: bool = False
-    pbi_queries: Optional[List[str]] = []
+    dashboard_name:    Optional[str] = None
+    pbi_active:        bool = False
+    pbi_queries:       Optional[List[str]] = []
+    needs_connection:  bool = False            # frontend deve pedir seleção
+    connections:       Optional[List[dict]] = []  # lista para o seletor
+
+
+def _get_allowed_contracts(db: Session, user: User) -> Optional[List[str]]:
+    """
+    Retorna lista de nomes de contratos que o usuário pode acessar.
+    None = admin (sem restrição).
+    """
+    if user.role == UserRole.ADMIN:
+        return None  # sem restrição
+
+    perms = db.query(Permission).filter(
+        Permission.user_id == user.id,
+        Permission.can_view == True,
+    ).all()
+
+    contract_names = set()
+    for p in perms:
+        if p.scope == PermissionScope.CONTRATO and p.contrato_id:
+            c = db.query(Contrato).filter(Contrato.id == p.contrato_id).first()
+            if c:
+                contract_names.add(c.name)
+        elif p.scope == PermissionScope.GRUPO and p.grupo_id:
+            # acesso ao grupo inteiro → todos contratos do grupo
+            contracts = db.query(Contrato).filter(Contrato.grupo_id == p.grupo_id).all()
+            for c in contracts:
+                contract_names.add(c.name)
+
+    return list(contract_names) if contract_names else []
 
 
 @router.post("/chat", response_model=ChatResponse)
@@ -41,12 +73,41 @@ def chat(request: ChatRequest, db: Session = Depends(get_db),
 
     history = [{"role": m.role, "content": m.content} for m in (request.conversation_history or [])]
 
-    # Verifica se há conexão Power BI ativa
-    pbi_conn = db.query(PBIConnection).filter(PBIConnection.is_active == True).first()
+    # ── Verifica conexões Power BI disponíveis ────────────────────────────────
+    all_conns = db.query(PBIConnection).filter(PBIConnection.is_active == True).all()
 
-    if pbi_conn:
-        # ── Modo Power BI: tool calling com DAX ──────────────────────────────
+    if all_conns:
+        # Seleciona a conexão certa
+        if request.pbi_connection_id:
+            pbi_conn = next((c for c in all_conns if c.id == request.pbi_connection_id), None)
+            if not pbi_conn:
+                raise HTTPException(status_code=404, detail="Conexão Power BI não encontrada")
+        elif len(all_conns) == 1:
+            pbi_conn = all_conns[0]
+        else:
+            # Múltiplas conexões, nenhuma selecionada → pede ao frontend
+            return ChatResponse(
+                answer="",
+                pbi_active=True,
+                needs_connection=True,
+                connections=[{"id": c.id, "name": c.name, "description": c.description or ""} for c in all_conns],
+            )
+
+        # ── Permissões por contrato ───────────────────────────────────────────
+        allowed_contracts = _get_allowed_contracts(db, current_user)
+
+        # Se usuário sem permissões de contrato, bloqueia
+        if allowed_contracts is not None and len(allowed_contracts) == 0:
+            return ChatResponse(
+                answer="⚠️ Você não possui permissão para acessar nenhum contrato. Entre em contato com o administrador para solicitar acesso.",
+                pbi_active=True,
+            )
+
         try:
+            schema = "\n\n".join(filter(None, [
+                pbi_conn.schema_context,
+                getattr(pbi_conn, 'measures_context', None),
+            ]))
             result = chat_with_powerbi(
                 question=request.question,
                 dataset_id=pbi_conn.dataset_id,
@@ -54,14 +115,16 @@ def chat(request: ChatRequest, db: Session = Depends(get_db),
                 tenant_id=pbi_conn.tenant_id,
                 client_id=pbi_conn.client_id,
                 client_secret=pbi_conn.client_secret,
-                schema_context=pbi_conn.schema_context,
+                schema_context=schema,
+                allowed_contracts=allowed_contracts,
                 conversation_history=history,
             )
         except Exception as e:
+            import traceback
+            print("ERRO AI CHAT:", traceback.format_exc())
             raise HTTPException(status_code=500, detail=f"Erro ao consultar Power BI: {str(e)}")
 
         _log(db, current_user.id, request.dashboard_id, request.question)
-
         return ChatResponse(
             answer=result["answer"],
             pbi_active=True,
@@ -102,7 +165,6 @@ def chat(request: ChatRequest, db: Session = Depends(get_db),
         raise HTTPException(status_code=500, detail=f"Erro no assistente de IA: {str(e)}")
 
     _log(db, current_user.id, request.dashboard_id, request.question)
-
     return ChatResponse(
         answer=answer,
         dashboard_name=dashboard.name if dashboard else None,

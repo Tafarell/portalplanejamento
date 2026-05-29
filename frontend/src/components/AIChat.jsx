@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import api from '../api/axios'
-import { Send, User, Trash2, Sparkles, Zap, ChevronDown, ChevronRight, Database } from 'lucide-react'
+import { Send, User, Trash2, Sparkles, Zap, ChevronDown, ChevronRight, Database, LayoutGrid } from 'lucide-react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 
@@ -11,10 +11,10 @@ const QUICK_DEFAULT = [
   'Identifique anomalias nos dados',
 ]
 const QUICK_PBI = [
-  'Qual o total de chamadas do mês atual?',
-  'Mostre as chamadas por hora de hoje',
-  'Compare o desempenho desta semana',
-  'Mostre os principais KPIs',
+  'Qual o total de chamadas de ontem?',
+  'Gera um gráfico de chamadas por hora de ontem',
+  'Compare o desempenho desta semana com a anterior',
+  'Mostre os principais KPIs do contrato',
 ]
 const WELCOME_DEFAULT = `Olá! Sou seu **Assistente de IA**.\n\nPosso analisar seus dashboards e responder perguntas sobre:\n- Faturamento e métricas\n- Comparações de período\n- Principais indicadores\n- Análise de tendências`
 const WELCOME_PBI = `Olá! Estou conectado ao seu **dataset Power BI** e posso consultar dados em tempo real.\n\nFaça qualquer pergunta sobre seus dados — posso executar consultas DAX e também **gerar gráficos** dos resultados!`
@@ -228,18 +228,23 @@ function DaxQueryBadge({ queries }) {
 }
 
 export default function AIChat({ dashboardId, dashboardName }) {
-  const [pbiActive, setPbiActive] = useState(false)
-  const [messages, setMessages]   = useState([])
-  const [input, setInput]         = useState('')
-  const [loading, setLoading]     = useState(false)
+  const [pbiActive, setPbiActive]         = useState(false)
+  const [connections, setConnections]     = useState([])
+  const [selectedConn, setSelectedConn]   = useState(null)
+  const [messages, setMessages]           = useState([])
+  const [input, setInput]                 = useState('')
+  const [loading, setLoading]             = useState(false)
   const bottomRef = useRef(null)
   const inputRef  = useRef(null)
 
   useEffect(() => {
-    api.get('/powerbi/connection')
+    api.get('/powerbi/connections')
       .then(({ data }) => {
-        const active = !!(data?.is_active)
+        const active = data?.length > 0
         setPbiActive(active)
+        setConnections(data || [])
+        // Auto-seleciona se houver apenas uma conexão
+        if (data?.length === 1) setSelectedConn(data[0])
         setMessages([{
           role: 'assistant',
           content: dashboardName
@@ -265,7 +270,19 @@ export default function AIChat({ dashboardId, dashboardName }) {
     inputRef.current?.focus()
     try {
       const history = messages.slice(-10).map(m => ({ role: m.role, content: m.content }))
-      const { data } = await api.post('/ai/chat', { question, dashboard_id: dashboardId || null, conversation_history: history })
+      const { data } = await api.post('/ai/chat', {
+        question,
+        dashboard_id: dashboardId || null,
+        pbi_connection_id: selectedConn?.id || null,
+        conversation_history: history,
+      })
+      if (data.needs_connection && data.connections?.length > 0) {
+        setConnections(data.connections)
+        setSelectedConn(null)
+        setMessages(prev => prev.slice(0, -1)) // remove user message
+        setInput(question) // devolve ao input
+        return
+      }
       setMessages(prev => [...prev, { role: 'assistant', content: data.answer, pbi_queries: data.pbi_queries || [] }])
       if (data.pbi_active !== undefined) setPbiActive(data.pbi_active)
     } catch {
@@ -365,7 +382,12 @@ export default function AIChat({ dashboardId, dashboardName }) {
         <div className="max-w-3xl mx-auto flex gap-2.5">
           <input ref={inputRef} value={input} onChange={e => setInput(e.target.value)}
             onKeyDown={e => e.key === 'Enter' && !e.shiftKey && send()}
-            placeholder={pbiActive ? 'Pergunte ou peça um gráfico dos seus dados...' : 'Faça uma pergunta sobre seus dados...'}
+            placeholder={
+              pbiActive && connections.length > 1 && !selectedConn
+                ? 'Selecione um dataset acima para começar...'
+                : pbiActive ? 'Pergunte ou peça um gráfico dos seus dados...'
+                : 'Faça uma pergunta sobre seus dados...'
+            }
             disabled={loading}
             className="flex-1 px-4 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-gray-50 placeholder-gray-400 disabled:opacity-60 transition"
           />
