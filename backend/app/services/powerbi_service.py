@@ -357,8 +357,19 @@ def discover_schema_fabric(
         if not res.get("error"):
             return res
 
-    names = ", ".join(f"{m.get('displayName')} ({m.get('id')})" for m in models)
-    return {"schema_text": "", "error": f"Nenhum modelo retornou definição. Modelos encontrados: {names}"}
+    # Coleta erros de cada tentativa para diagnóstico
+    errors_detail = []
+    for model in ids:
+        item_id = model.get("id")
+        name    = model.get("displayName", "?")
+        if not item_id:
+            continue
+        res = _fabric_get_definition(item_id, workspace_id, headers)
+        if not res.get("error"):
+            return res
+        errors_detail.append(f"{name} ({item_id}): {res['error']}")
+
+    return {"schema_text": "", "error": "Falha em todos os modelos:\n" + "\n".join(errors_detail)}
 
 
 def format_rows_for_llm(result: dict, max_rows: int = 200) -> str:
