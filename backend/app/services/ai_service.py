@@ -75,12 +75,12 @@ Medidas principais e suas definicoes:
 - [Chamadas Atendidas]: atendidas com sucesso pelo operador humano
 - [Chamadas Abandonadas]: cliente desistiu enquanto aguardava na fila humana
 - [Chamadas Desistente/Bloqueadas]: desligou logo apos a URA antes de entrar na fila
-- [Tempo Medio Atendidas] ou TMA: AHT em segundos. Principal componente do custo.
-- [Tempo Medio Espera] ou TME: ASA em segundos. Tempo medio do cliente na fila humana.
-- [Tempo Medio de Pausa] ou TMP: tempo medio de pausa dos agentes
-- [Absenteismo]: 1 - (permanencia / carga horaria). Alta = equipe ausente.
-- [Nivel de Servico]: % chamadas atendidas dentro do tempo limite (meta SLA)
-- [Nivel de Abandono]: % chamadas abandonadas apos o tempo limite (meta IAB)
+- [Tempo Médio Atendidas] ou TMA: AHT em segundos. Principal componente do custo.
+- [Tempo Médio Espera] ou TME: ASA em segundos. Tempo medio do cliente na fila humana.
+- [Tempo Médio de Pausa] ou TMP: tempo medio de pausa dos agentes
+- [Absenteísmo]: 1 - (permanencia / carga horaria). Alta = equipe ausente.
+- [Nível de Serviço]: % chamadas atendidas dentro do tempo limite (meta SLA)
+- [Nível de Abandono]: % chamadas abandonadas apos o tempo limite (meta IAB)
 - [Rechamadas]: clientes que ligaram mais de 1x no mesmo dia (baixo FCR - First Call Resolution)
 - [% Rechamadas]: rechamadas / bilhetadas. Mede inversamente a resolutividade.
 - [Score]: pontuacao 0-1000 combinando NS, Abandono, Absenteismo e TMP (pesos 25% cada)
@@ -165,9 +165,11 @@ NUNCA use expressoes booleanas direto no CALCULATE sem FILTER — use FILTER(ALL
 
 ## Regras gerais:
 - Prefira CALCULATETABLE + ROW para totais com filtro
-- Se SUMMARIZECOLUMNS falhar, tente CALCULATETABLE(ROW(...), filtros...)
+- LIMITE de medidas por SUMMARIZECOLUMNS: maximo 4 medidas por query. Se precisar de mais, faca multiplas queries.
+- Se SUMMARIZECOLUMNS falhar, tente CALCULATETABLE(ROW(...), filtros...) com 1-2 medidas
 - Execute quantas queries forem necessarias para responder
-- Se uma query falhar 2 vezes, simplifique e tente abordagem diferente
+- Se uma query falhar 2 vezes, simplifique drasticamente — use apenas 1 medida por vez
+- Queries com muitas medidas ao mesmo tempo causam timeout — prefira queries menores e combine os resultados
 
 ## Postura analitica — OBRIGATORIO:
 
@@ -365,7 +367,20 @@ def chat_with_powerbi(
         msg = response.choices[0].message
         if not msg.tool_calls:
             return {"answer": msg.content or "", "pbi_queries": pbi_queries}
-        messages.append(msg)
+        # Converte para dict garantindo content nunca null (OpenRouter/Azure rejeita null)
+        msg_dict = {
+            "role": "assistant",
+            "content": msg.content or "",
+            "tool_calls": [
+                {
+                    "id": tc.id,
+                    "type": "function",
+                    "function": {"name": tc.function.name, "arguments": tc.function.arguments}
+                }
+                for tc in msg.tool_calls
+            ]
+        }
+        messages.append(msg_dict)
         for tool_call in msg.tool_calls:
             try:
                 args = json.loads(tool_call.function.arguments)
