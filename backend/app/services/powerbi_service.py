@@ -153,7 +153,6 @@ def explore_tables_columns(
                 lines.append("  Colunas: (tabela vazia)")
                 tables_found.append(tname)
 
-        lines.append(f"  Medidas: (adicione manualmente)")
         lines.append("")
 
     return {
@@ -163,9 +162,262 @@ def explore_tables_columns(
     }
 
 
+def _get_tables_list(dataset_id: str, token: str, workspace_id: Optional[str] = None) -> list[str]:
+    """Obtém a lista de tabelas via REST API padrão (sem permissão de admin)."""
+    if workspace_id:
+        url = f"https://api.powerbi.com/v1.0/myorg/groups/{workspace_id}/datasets/{dataset_id}/tables"
+    else:
+        url = f"https://api.powerbi.com/v1.0/myorg/datasets/{dataset_id}/tables"
+    with httpx.Client(timeout=30) as c:
+        resp = c.get(url, headers={"Authorization": f"Bearer {token}"})
+    if resp.status_code != 200:
+        return []
+    return [t["name"] for t in resp.json().get("value", [])]
+
+
+def discover_schema_auto(
+    workspace_id: str,
+    dataset_id: str,
+    tenant_id: str,
+    client_id: str,
+    client_secret: str,
+) -> dict:
+    """
+    Descobre schema completo com fallback automático:
+      1. Tenta Scanner Admin API (tabelas + colunas + medidas)
+      2. Se falhar (ex: sem permissão), usa GET /tables + EVALUATE TOPN para colunas
+
+    Retorna { "schema_text": str, "error": str|None, "fallback": bool,
+              "table_count": int, "measure_count": int }
+    """
+    # Tenta Scanner primeiro
+    result = discover_schema_scanner(
+        workspace_id=workspace_id,
+        dataset_id=dataset_id,
+        tenant_id=tenant_id,
+        client_id=client_id,
+        client_secret=client_secret,
+    )
+    if not result.get("error"):
+        lines = result["schema_text"].splitlines()
+        return {
+            **result,
+            "fallback": False,
+            "table_count":   sum(1 for l in lines if l.startswith("Tabela:")),
+            "measure_count": sum(l.count("[") for l in lines if "Medidas:" in l),
+        }
+
+    scanner_error = result["error"]
+
+    # Fallback: lista tabelas via API padrão + TOPN por tabela
+    token = get_pbi_token(tenant_id, client_id, client_secret)
+    table_names = _get_tables_list(dataset_id, token, workspace_id)
+
+    SKIP = {"DateTableTemplate", "LocalDateTable"}
+    table_names = [t for t in table_names if not any(t.startswith(s) for s in SKIP)]
+
+    if not table_names:
+        return {"schema_text": "", "error": scanner_error, "fallback": True,
+                "table_count": 0, "measure_count": 0}
+
+    col_result = explore_tables_columns(dataset_id, token, table_names, workspace_id)
+
+    # Remove linhas "Medidas: (adicione manualmente)" pois não temos medidas no fallback
+    clean_lines = [
+        l for l in col_result["schema_text"].splitlines()
+        if "Medidas: (adicione manualmente)" not in l
+    ]
+    schema_text = "\n".join(clean_lines).strip()
+
+    if schema_text:
+        schema_text += (
+            "\n\n# Medidas: não disponíveis sem permissão Admin API\n"
+            f"# (Erro Scanner: {scanner_error[:120]})"
+        )
+
+    return {
+        "schema_text": schema_text,
+        "error": None,
+        "fallback": True,
+        "scanner_error": scanner_error,
+        "table_count": len(col_result["tables_found"]),
+        "measure_count": 0,
+    }
+
+
+def discover_schema_scanner(
+    workspace_id: str,
+    dataset_id: str,
+    tenant_id: str,
+    client_id: str,
+    client_secret: str,
+) -> dict:
+    """
+    Descobre schema completo via Power BI Scanner Admin API.
+    Requer: "Allow service principals to use read-only Power BI admin APIs" habilitado no tenant.
+
+    Retorna { "schema_text": str, "error": str|None }
+    """
+    import time
+
+    token = get_pbi_token(tenant_id, client_id, client_secret)
+    headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
+
+    # 1. Dispara o scan
+    scan_url = (
+        "https://api.powerbi.com/v1.0/myorg/admin/workspaces/getInfo"
+        "?lineage=false&datasourceDetails=false&datasetSchema=true&datasetExpressions=false"
+    )
+    with httpx.Client(timeout=30) as c:
+        resp = c.post(scan_url, headers=headers, json={"workspaces": [workspace_id]})
+
+    if resp.status_code not in (200, 202):
+        return {"schema_text": "", "error": f"Scanner API HTTP {resp.status_code}: {resp.text[:500]}"}
+
+    scan_id = resp.json().get("id")
+    if not scan_id:
+        return {"schema_text": "", "error": "Scanner API não retornou scan ID."}
+
+    # 2. Polling até status Succeeded
+    status_url = f"https://api.powerbi.com/v1.0/myorg/admin/workspaces/scanStatus/{scan_id}"
+    for _ in range(30):
+        time.sleep(2)
+        with httpx.Client(timeout=15) as c:
+            poll = c.get(status_url, headers=headers)
+        status = poll.json().get("status", "")
+        if status == "Succeeded":
+            break
+        if status in ("Failed", "Cancelled"):
+            return {"schema_text": "", "error": f"Scan {status}: {poll.text[:300]}"}
+    else:
+        return {"schema_text": "", "error": "Timeout aguardando Scanner API (60s)."}
+
+    # 3. Busca resultado
+    result_url = f"https://api.powerbi.com/v1.0/myorg/admin/workspaces/scanResult/{scan_id}"
+    with httpx.Client(timeout=30) as c:
+        result_resp = c.get(result_url, headers=headers)
+
+    if result_resp.status_code != 200:
+        return {"schema_text": "", "error": f"scanResult HTTP {result_resp.status_code}: {result_resp.text[:300]}"}
+
+    workspaces = result_resp.json().get("workspaces", [])
+    if not workspaces:
+        return {"schema_text": "", "error": "Nenhum workspace encontrado no resultado."}
+
+    # 4. Encontra o dataset correto
+    target_dataset = None
+    for ws in workspaces:
+        for ds in ws.get("datasets", []):
+            if ds.get("id") == dataset_id:
+                target_dataset = ds
+                break
+        if target_dataset:
+            break
+
+    if not target_dataset:
+        # Tenta pegar qualquer dataset do workspace
+        all_ds = [ds for ws in workspaces for ds in ws.get("datasets", [])]
+        if all_ds:
+            target_dataset = all_ds[0]
+        else:
+            return {"schema_text": "", "error": "Dataset não encontrado no resultado do scan."}
+
+    # 5. Formata schema
+    lines: list[str] = []
+    SKIP = {"DateTableTemplate", "LocalDateTable"}
+
+    for table in target_dataset.get("tables", []):
+        tname: str = table.get("name", "")
+        if any(tname.startswith(s) for s in SKIP):
+            continue
+
+        cols = [
+            c["name"] for c in table.get("columns", [])
+            if not c.get("isHidden") and c.get("columnType") != "RowNumber"
+        ]
+        measures = [
+            m["name"] for m in table.get("measures", [])
+            if not m.get("isHidden")
+        ]
+
+        lines.append(f"Tabela: {tname}")
+        if cols:
+            lines.append(f"  Colunas: {', '.join(cols)}")
+        if measures:
+            lines.append(f"  Medidas: {', '.join(f'[{m}]' for m in measures)}")
+        lines.append("")
+
+    return {"schema_text": "\n".join(lines).strip(), "error": None}
+
+
 def discover_schema(dataset_id: str, token: str, workspace_id: Optional[str] = None) -> dict:
-    """Alias mantido para compatibilidade — INFO functions não suportadas neste modelo."""
-    return {"schema_text": "", "tables": [], "error": "INFO functions indisponíveis. Use explore_tables_columns()."}
+    """
+    Descobre schema via DAX INFO functions simples (sem SELECTCOLUMNS/FILTER).
+    Retorna { "schema_text": str, "tables": list[str], "error": str|None }
+    """
+    # ── Tabelas ───────────────────────────────────────────────────────────────
+    t_res = execute_dax_query(dataset_id, "EVALUATE INFO.TABLES()", token, workspace_id)
+    if t_res.get("error"):
+        return {"schema_text": "", "tables": [], "error": f"INFO functions indisponíveis: {t_res['error']}"}
+
+    tables: dict[int, str] = {}
+    for row in t_res["rows"]:
+        clean = {_clean_key(k): v for k, v in row.items()}
+        tid, tname = clean.get("ID"), clean.get("Name")
+        hidden = clean.get("IsHidden", False)
+        if tid is not None and tname and not hidden:
+            tables[tid] = tname
+
+    # ── Colunas ───────────────────────────────────────────────────────────────
+    c_res = execute_dax_query(dataset_id, "EVALUATE INFO.COLUMNS()", token, workspace_id)
+    table_columns: dict[str, list[str]] = {}
+    for row in c_res.get("rows", []):
+        clean = {_clean_key(k): v for k, v in row.items()}
+        tid    = clean.get("TableID")
+        col    = clean.get("ExplicitName") or clean.get("Name")
+        hidden = clean.get("IsHidden", False)
+        ctype  = clean.get("Type")          # 3 = RowNumber (interno)
+        state  = clean.get("State", 1)      # 1 = Ready
+        if not col or hidden or ctype == 3 or state != 1:
+            continue
+        tname = tables.get(tid)
+        if tname:
+            table_columns.setdefault(tname, []).append(col)
+
+    # ── Medidas ───────────────────────────────────────────────────────────────
+    m_res = execute_dax_query(dataset_id, "EVALUATE INFO.MEASURES()", token, workspace_id)
+    table_measures: dict[str, list[str]] = {}
+    for row in m_res.get("rows", []):
+        clean   = {_clean_key(k): v for k, v in row.items()}
+        tid     = clean.get("TableID")
+        measure = clean.get("Name")
+        if not measure:
+            continue
+        tname = tables.get(tid)
+        if tname:
+            table_measures.setdefault(tname, []).append(measure)
+
+    # ── Formata schema ────────────────────────────────────────────────────────
+    lines: list[str] = []
+    SKIP = {"DateTableTemplate", "LocalDateTable"}
+    all_names = sorted(set(list(table_columns) + list(table_measures)))
+    for tname in all_names:
+        if any(tname.startswith(s) for s in SKIP):
+            continue
+        lines.append(f"Tabela: {tname}")
+        cols = table_columns.get(tname, [])
+        if cols:
+            lines.append(f"  Colunas: {', '.join(cols)}")
+        measures = table_measures.get(tname, [])
+        if measures:
+            lines.append(f"  Medidas: {', '.join(f'[{m}]' for m in measures)}")
+        lines.append("")
+
+    return {
+        "schema_text": "\n".join(lines).strip(),
+        "tables": list(tables.values()),
+        "error": None,
+    }
 
 
 # ── Fabric API — definição completa do modelo semântico ───────────────────────

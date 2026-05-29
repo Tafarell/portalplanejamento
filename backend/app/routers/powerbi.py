@@ -9,6 +9,8 @@ from app.utils.security import get_current_user
 from app.services.powerbi_service import (
     get_pbi_token, test_connection as pbi_test_connection,
     execute_dax_query, explore_tables_columns, discover_schema_fabric,
+    discover_schema as pbi_discover_schema,
+    discover_schema_scanner, discover_schema_auto,
     _get_token, FABRIC_BASE_URL,
 )
 
@@ -131,8 +133,111 @@ def get_schema(db: Session = Depends(get_db),
     return {"schema": conn.schema_context or ""}
 
 
+@router.post("/discover-schema")
+def discover_schema_endpoint(db: Session = Depends(get_db),
+                             current_user: User = Depends(get_current_user)):
+    """
+    Descobre schema completo via Scanner Admin API (tabelas + colunas + medidas).
+    Requer: 'Allow service principals to use read-only Power BI admin APIs' habilitado no tenant.
+    Apenas admin.
+    """
+    _require_admin(current_user)
+    conn = db.query(PBIConnection).filter(PBIConnection.is_active == True).first()
+    if not conn:
+        raise HTTPException(status_code=404, detail="Nenhuma conexão configurada.")
+    if not conn.workspace_id:
+        raise HTTPException(status_code=422, detail="Workspace ID é obrigatório para o Scanner API.")
+    try:
+        result = discover_schema_auto(
+            workspace_id=conn.workspace_id,
+            dataset_id=conn.dataset_id,
+            tenant_id=conn.tenant_id,
+            client_id=conn.client_id,
+            client_secret=conn.client_secret,
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    if result.get("error"):
+        raise HTTPException(status_code=422, detail=result["error"])
+    conn.schema_context = result["schema_text"]
+    db.commit()
+    return {
+        "ok": True,
+        "schema_text":   result["schema_text"],
+        "table_count":   result.get("table_count", 0),
+        "measure_count": result.get("measure_count", 0),
+        "fallback":      result.get("fallback", False),
+        "scanner_error": result.get("scanner_error"),
+    }
+
+
 class ExploreTablesIn(BaseModel):
     table_names: List[str]
+
+
+class VerifyMeasureIn(BaseModel):
+    measure_name: str          # ex: "Total Ligações"
+    table_name:   Optional[str] = None  # ex: "fBaseGeral" (opcional, para schema)
+
+
+@router.post("/verify-measure")
+def verify_measure(data: VerifyMeasureIn,
+                   db: Session = Depends(get_db),
+                   current_user: User = Depends(get_current_user)):
+    """
+    Verifica se uma medida existe via EVALUATE ROW e, se válida,
+    adiciona ao schema_context da conexão ativa. Apenas admin.
+    """
+    _require_admin(current_user)
+
+    conn = db.query(PBIConnection).filter(PBIConnection.is_active == True).first()
+    if not conn:
+        raise HTTPException(status_code=404, detail="Nenhuma conexão configurada.")
+
+    name = data.measure_name.strip().strip("[]")
+    try:
+        token  = get_pbi_token(conn.tenant_id, conn.client_id, conn.client_secret)
+        result = execute_dax_query(
+            conn.dataset_id,
+            f'EVALUATE ROW("v", [{name}])',
+            token, conn.workspace_id,
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+    if result.get("error"):
+        return {"exists": False, "measure": name, "error": result["error"]}
+
+    # Adiciona ao schema_context preservando o texto existente
+    schema = conn.schema_context or ""
+    entry  = f"[{name}]"
+    if entry not in schema:
+        # Insere numa linha "Medidas adicionadas manualmente:"
+        marker = "\n\n# Medidas verificadas:"
+        if marker in schema:
+            schema += f", {entry}"
+        else:
+            schema += f"{marker}\n{entry}"
+        conn.schema_context = schema
+        db.commit()
+
+    return {"exists": True, "measure": name, "added": entry not in (conn.schema_context or "")}
+
+
+@router.delete("/measure/{measure_name}")
+def remove_measure(measure_name: str,
+                   db: Session = Depends(get_db),
+                   current_user: User = Depends(get_current_user)):
+    """Remove uma medida do schema_context. Apenas admin."""
+    _require_admin(current_user)
+    conn = db.query(PBIConnection).filter(PBIConnection.is_active == True).first()
+    if not conn:
+        raise HTTPException(status_code=404, detail="Nenhuma conexão configurada.")
+    schema = conn.schema_context or ""
+    entry  = f"[{measure_name.strip().strip('[]')}]"
+    conn.schema_context = schema.replace(f", {entry}", "").replace(entry, "").strip()
+    db.commit()
+    return {"ok": True}
 
 
 @router.post("/explore-tables")
