@@ -80,7 +80,7 @@ export default function AdminDashboards() {
 
   return (
     <Layout>
-      <div className="p-6 max-w-7xl mx-auto">
+      <div className="p-5">
         <div className="flex items-center justify-between mb-6">
           <div>
             <h1 className="text-2xl font-bold text-gray-900">Dashboards & Aplicativos</h1>

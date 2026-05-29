@@ -23,7 +23,7 @@ export default function AdminLogs() {
 
   return (
     <Layout>
-      <div className="p-6 max-w-5xl mx-auto">
+      <div className="p-5">
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-3">
             <FileText className="w-6 h-6 text-blue-600" />
