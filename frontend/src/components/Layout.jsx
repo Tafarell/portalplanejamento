@@ -67,22 +67,33 @@ export default function Layout({ children }) {
       <div className="flex flex-col h-full">
         {/* Logo */}
         <div className={clsx(
-          'flex items-center border-b border-slate-700/60 py-4',
+          'flex items-center border-b border-slate-700/40 py-3.5',
           isCollapsed ? 'justify-center px-2' : 'px-4 gap-3'
         )}>
-          <div className="w-9 h-9 bg-gradient-to-br from-blue-500 to-blue-700 rounded-xl flex items-center justify-center shadow-lg shadow-blue-500/30 flex-shrink-0">
-            <BarChart3 className="w-5 h-5 text-white" />
+          <div
+            className={clsx('w-8 h-8 bg-gradient-to-br from-blue-500 to-blue-700 rounded-lg flex items-center justify-center flex-shrink-0', isCollapsed && !isMobile && 'cursor-pointer')}
+            onClick={() => isCollapsed && !isMobile && setCollapsed(false)}
+            title={isCollapsed ? 'Expandir menu' : undefined}
+          >
+            <BarChart3 className="w-4 h-4 text-white" />
           </div>
           {!isCollapsed && (
-            <div className="flex-1 min-w-0">
-              <p className="text-white font-bold text-sm leading-tight">Portal</p>
-              <p className="text-blue-400 text-xs">Planejamento & BI</p>
-            </div>
-          )}
-          {isMobile && (
-            <button onClick={() => setMobileOpen(false)} className="text-slate-400 hover:text-white p-1 ml-auto">
-              <X className="w-5 h-5" />
-            </button>
+            <>
+              <div className="flex-1 min-w-0">
+                <p className="text-white font-semibold text-sm leading-tight">Portal</p>
+                <p className="text-slate-400 text-xs">Planejamento & BI</p>
+              </div>
+              {!isMobile && (
+                <button onClick={() => setCollapsed(true)} className="text-slate-500 hover:text-slate-300 p-1 rounded transition-colors" title="Recolher menu">
+                  <ChevronLeft className="w-4 h-4" />
+                </button>
+              )}
+              {isMobile && (
+                <button onClick={() => setMobileOpen(false)} className="text-slate-400 hover:text-white p-1 rounded transition-colors">
+                  <X className="w-4 h-4" />
+                </button>
+              )}
+            </>
           )}
         </div>
 
@@ -160,19 +171,11 @@ export default function Layout({ children }) {
       {/* Sidebar Desktop */}
       <aside
         className={clsx(
-          'hidden md:flex bg-slate-900 flex-col flex-shrink-0 border-r border-slate-800 transition-all duration-200 relative',
+          'hidden md:flex bg-slate-900 flex-col flex-shrink-0 border-r border-slate-800 transition-all duration-200',
           collapsed ? 'w-[60px]' : 'w-60'
         )}
       >
         <SidebarContent />
-        {/* Toggle tab — borda direita do sidebar */}
-        <button
-          onClick={() => setCollapsed(c => !c)}
-          className="absolute -right-3 top-7 z-10 w-6 h-6 bg-slate-700 border border-slate-600 rounded-full flex items-center justify-center text-slate-300 hover:text-white hover:bg-slate-600 transition-colors shadow-md"
-          title={collapsed ? 'Expandir menu' : 'Recolher menu'}
-        >
-          {collapsed ? <ChevronRight className="w-3 h-3" /> : <ChevronLeft className="w-3 h-3" />}
-        </button>
       </aside>
 
       {/* Overlay + Sidebar Mobile */}
