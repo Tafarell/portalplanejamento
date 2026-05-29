@@ -164,7 +164,6 @@ function ConnectionForm({ initial, onSave, onCancel }) {
       {showSchema && (
         <div className="space-y-3 border-t pt-3">
           {field('Schema (tabelas e colunas)', 'schema_context', { textarea: true, rows: 8, placeholder: 'Cole o schema detectado ou use "Detectar Schema"' })}
-          {field('Medidas DAX', 'measures_context', { textarea: true, rows: 4, placeholder: 'Medidas adicionais para a IA' })}
         </div>
       )}
       <div className="flex gap-3 pt-2">
