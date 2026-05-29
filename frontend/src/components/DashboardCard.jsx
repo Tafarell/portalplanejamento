@@ -27,12 +27,7 @@ export default function DashboardCard({ dashboard, onClick }) {
           </div>
         )}
         <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
-        <div className="absolute top-3 left-3">
-          <span className={clsx('badge', cat.color)}>
-            <Icon className="w-3 h-3 mr-1" />
-            {cat.label}
-          </span>
-        </div>
+
         <div className="absolute bottom-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity">
           <div className="w-8 h-8 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center">
             <ExternalLink className="w-4 h-4 text-white" />
