@@ -22,7 +22,7 @@ export default function App() {
           <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route path="/" element={<ProtectedRoute><Home /></ProtectedRoute>} />
           <Route path="/dashboard/:id" element={<ProtectedRoute><DashboardView /></ProtectedRoute>} />
-          <Route path="/ai" element={<ProtectedRoute internalOnly><AIPage /></ProtectedRoute>} />
+          <Route path="/ai" element={<ProtectedRoute aiOnly><AIPage /></ProtectedRoute>} />
           <Route path="/admin/dashboards" element={<ProtectedRoute adminOnly><AdminDashboards /></ProtectedRoute>} />
           <Route path="/admin/users" element={<ProtectedRoute adminOnly><AdminUsers /></ProtectedRoute>} />
           <Route path="/admin/clients" element={<ProtectedRoute adminOnly><AdminClients /></ProtectedRoute>} />

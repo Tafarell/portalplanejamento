@@ -28,7 +28,10 @@ class ChatResponse(BaseModel):
 @router.post("/chat", response_model=ChatResponse)
 def chat(request: ChatRequest, db: Session = Depends(get_db),
          current_user: User = Depends(get_current_user)):
-    
+
+    if not current_user.can_use_ai and current_user.role != UserRole.ADMIN:
+        raise HTTPException(status_code=403, detail="Acesso ao Assistente IA não autorizado")
+
     dashboard = None
     parquet_path = None
     dax_context = None

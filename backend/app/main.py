@@ -34,6 +34,7 @@ def startup():
 def _run_migrations():
     """Adiciona colunas novas às tabelas existentes (idempotente)."""
     migrations = [
+        "ALTER TABLE users ADD COLUMN IF NOT EXISTS can_use_ai BOOLEAN DEFAULT FALSE",
         "ALTER TABLE dashboards ADD COLUMN IF NOT EXISTS contrato_id INTEGER REFERENCES contratos(id)",
         "ALTER TABLE permissions ADD COLUMN IF NOT EXISTS scope VARCHAR(20) DEFAULT 'dashboard'",
         "ALTER TABLE permissions ADD COLUMN IF NOT EXISTS contrato_id INTEGER REFERENCES contratos(id)",

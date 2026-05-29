@@ -3,7 +3,7 @@ import api from '../../api/axios'
 import Layout from '../../components/Layout'
 import { Plus, Pencil, Trash2, ToggleLeft, ToggleRight, Search, X, Users } from 'lucide-react'
 
-const EMPTY = { name: '', email: '', password: '', role: 'external', client_id: '', is_active: true }
+const EMPTY = { name: '', email: '', password: '', role: 'external', client_id: '', is_active: true, can_use_ai: false }
 
 const roleColors = { admin: 'bg-red-100 text-red-700', internal: 'bg-blue-100 text-blue-700', external: 'bg-gray-100 text-gray-700' }
 const roleLabels = { admin: 'Administrador', internal: 'Interno', external: 'Externo' }
@@ -98,8 +98,8 @@ export default function AdminUsers() {
                       {grupos.find(g => g.id === u.client_id)?.name || '—'}
                     </td>
                     <td className="px-4 py-3">
-                      <span className={`badge ${u.is_active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
-                        {u.is_active ? 'Ativo' : 'Bloqueado'}
+                      <span className={`badge ${u.is_active ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-600'}`}>
+                        {u.is_active ? 'Ativo' : 'Inativo'}
                       </span>
                     </td>
                     <td className="px-4 py-3">
@@ -170,10 +170,16 @@ export default function AdminUsers() {
                   </select>
                 </div>
               </div>
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input type="checkbox" checked={form.is_active} onChange={e => setForm({...form, is_active: e.target.checked})} className="rounded" />
-                <span className="text-sm text-gray-700">Usuário ativo</span>
-              </label>
+              <div className="flex gap-6">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input type="checkbox" checked={form.is_active} onChange={e => setForm({...form, is_active: e.target.checked})} className="rounded" />
+                  <span className="text-sm text-gray-700">Usuário ativo</span>
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input type="checkbox" checked={form.can_use_ai} onChange={e => setForm({...form, can_use_ai: e.target.checked})} className="rounded" />
+                  <span className="text-sm text-gray-700">Acesso ao Assistente IA</span>
+                </label>
+              </div>
               <div className="flex justify-end gap-3 pt-2">
                 <button type="button" onClick={() => setModal(false)} className="btn-secondary">Cancelar</button>
                 <button type="submit" disabled={loading} className="btn-primary">{loading ? 'Salvando...' : 'Salvar'}</button>

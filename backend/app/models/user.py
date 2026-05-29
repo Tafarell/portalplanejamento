@@ -20,6 +20,7 @@ class User(Base):
     is_active = Column(Boolean, default=True)
     client_id = Column(Integer, ForeignKey("clients.id"), nullable=True)
     avatar_url = Column(String(500), nullable=True)
+    can_use_ai = Column(Boolean, default=False)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     last_login = Column(DateTime, nullable=True)

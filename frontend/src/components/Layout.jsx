@@ -39,7 +39,7 @@ function NavLink({ item, active, onClick, collapsed }) {
 }
 
 export default function Layout({ children }) {
-  const { user, logout, isAdmin, isInternal } = useAuth()
+  const { user, logout, isAdmin, canUseAI } = useAuth()
   const location = useLocation()
   const navigate = useNavigate()
   const [mobileOpen, setMobileOpen] = useState(false)
@@ -88,7 +88,7 @@ export default function Layout({ children }) {
 
         {/* Nav */}
         <nav className={clsx('flex-1 py-3 space-y-0.5 overflow-y-auto', isCollapsed ? 'px-2' : 'px-3')}>
-          {navItems.filter(item => !item.internalOnly || isInternal()).map(item => (
+          {navItems.filter(item => !item.internalOnly || canUseAI()).map(item => (
             <NavLink
               key={item.to}
               item={item}

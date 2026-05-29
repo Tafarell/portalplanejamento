@@ -9,6 +9,7 @@ class UserBase(BaseModel):
     role: UserRole = UserRole.EXTERNAL
     client_id: Optional[int] = None
     is_active: bool = True
+    can_use_ai: bool = False
 
 class UserCreate(UserBase):
     password: str
@@ -19,11 +20,13 @@ class UserUpdate(BaseModel):
     role: Optional[UserRole] = None
     client_id: Optional[int] = None
     is_active: Optional[bool] = None
+    can_use_ai: Optional[bool] = None
     password: Optional[str] = None
 
 class UserOut(UserBase):
     id: int
     avatar_url: Optional[str] = None
+    can_use_ai: bool = False
     created_at: datetime
     last_login: Optional[datetime] = None
 

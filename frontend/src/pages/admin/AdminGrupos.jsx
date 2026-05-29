@@ -118,7 +118,7 @@ export default function AdminGrupos() {
                   </div>
                   <div className="flex items-center gap-3 flex-shrink-0">
                     <span className="text-xs text-gray-400">{gContratos.length} contrato{gContratos.length !== 1 ? 's' : ''}</span>
-                    <span className={`badge ${g.is_active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
+                    <span className={`badge ${g.is_active ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-600'}`}>
                       {g.is_active ? 'Ativo' : 'Inativo'}
                     </span>
                     <button onClick={() => openEditGrupo(g)} className="p-1.5 text-gray-400 hover:text-blue-600 rounded hover:bg-blue-50">
@@ -140,7 +140,7 @@ export default function AdminGrupos() {
                             <FileText className="w-3.5 h-3.5 text-indigo-400 flex-shrink-0" />
                             <span className="flex-1 text-sm text-gray-700">{c.name}</span>
                             {c.description && <span className="text-xs text-gray-400 truncate max-w-xs hidden sm:block">{c.description}</span>}
-                            <span className={`badge text-xs ${c.is_active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
+                            <span className={`badge text-xs ${c.is_active ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-600'}`}>
                               {c.is_active ? 'Ativo' : 'Inativo'}
                             </span>
                             <button onClick={() => openEditContrato(c)} className="p-1 text-gray-400 hover:text-blue-600 rounded hover:bg-blue-50">
