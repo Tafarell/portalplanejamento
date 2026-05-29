@@ -5,7 +5,7 @@ from app.config import settings
 from app.database import Base, engine
 from app.models import *  # garante que todos os models são importados antes do create_all
 from app.routers import auth, users, clients, dashboards, permissions, access_logs, ai_assistant
-from app.routers import grupos, contratos, categories
+from app.routers import grupos, contratos, categories, powerbi
 from app.utils.security import hash_password
 
 app = FastAPI(
@@ -102,6 +102,7 @@ app.include_router(permissions.router)
 app.include_router(access_logs.router)
 app.include_router(ai_assistant.router)
 app.include_router(categories.router)
+app.include_router(powerbi.router)
 
 @app.get("/api/health")
 def health():

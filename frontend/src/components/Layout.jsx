@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
-import { Users, LogOut, Menu, X, BarChart3, Bot, Building2, Shield, FileText, ChevronLeft, Layers3, LayoutGrid, Database } from 'lucide-react'
+import { Users, LogOut, Menu, X, BarChart3, Bot, Building2, Shield, FileText, ChevronLeft, Layers3, LayoutGrid, Database, Zap } from 'lucide-react'
 import clsx from 'clsx'
 
 const navItems = [
@@ -16,6 +16,7 @@ const adminItems = [
   { to: '/admin/users', label: 'Usuários', icon: Users },
   { to: '/admin/permissions', label: 'Permissões', icon: Shield },
   { to: '/admin/logs', label: 'Acessos', icon: FileText },
+  { to: '/admin/powerbi', label: 'Power BI', icon: Zap },
 ]
 
 function NavLink({ item, active, onClick, collapsed }) {

@@ -13,6 +13,7 @@ import AdminGrupos from './pages/admin/AdminGrupos'
 import AdminPermissions from './pages/admin/AdminPermissions'
 import AdminLogs from './pages/admin/AdminLogs'
 import AdminCategories from './pages/admin/AdminCategories'
+import AdminPBI from './pages/admin/AdminPBI'
 
 export default function App() {
   return (
@@ -31,6 +32,7 @@ export default function App() {
           <Route path="/admin/grupos" element={<ProtectedRoute adminOnly><AdminGrupos /></ProtectedRoute>} />
           <Route path="/admin/permissions" element={<ProtectedRoute adminOnly><AdminPermissions /></ProtectedRoute>} />
           <Route path="/admin/logs" element={<ProtectedRoute adminOnly><AdminLogs /></ProtectedRoute>} />
+          <Route path="/admin/powerbi" element={<ProtectedRoute adminOnly><AdminPBI /></ProtectedRoute>} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </BrowserRouter>
