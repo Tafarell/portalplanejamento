@@ -42,8 +42,9 @@ Qualquer tabela com acento ou caractere especial DEVE ser envolta em aspas simpl
 A dimensão dGrupoEmpresa identifica o contrato/servico. Coluna-chave:
 - secao_resumido -> nome do contrato (ex: "Ligue 180", "Ouvidoria", "Saude da Mulher")
 
-Sempre que o usuario mencionar um contrato/servico especifico, SEMPRE filtre por dGrupoEmpresa[secao_resumido].
-Sem esse filtro os totais incluem TODOS os contratos — resultado errado.
+- Se o usuario mencionar um contrato/servico especifico (ex: "Ligue 180", "Ouvidoria"), filtre por dGrupoEmpresa[secao_resumido] = "NomeExato".
+- Se o usuario NAO mencionar contrato especifico, NAO adicione filtro de contrato — retorne dados de todos os contratos.
+- Administrador pode ver todos os contratos sem restricao.
 
 ## CONTRATOS PERMITIDOS PARA ESTE USUARIO:
 ALLOWED_CONTRACTS_PLACEHOLDER
@@ -56,14 +57,14 @@ EVALUATE ROW("Total", [Medida])
 Total filtrado por contrato:
 EVALUATE CALCULATETABLE(
     ROW("Total", [Chamadas Entrantes]),
-    dGrupoEmpresa[secao_resumido] = "Ligue 180"
+    dGrupoEmpresa[secao_resumido] = "NomeDoContrato"
 )
 
 Total filtrado por data (ontem) + contrato:
 EVALUATE CALCULATETABLE(
     ROW("Total", [Chamadas Entrantes]),
     'dCalendario'[Date] = TODAY() - 1,
-    dGrupoEmpresa[secao_resumido] = "Ligue 180"
+    dGrupoEmpresa[secao_resumido] = "NomeDoContrato"
 )
 
 Total filtrado por mes atual + contrato:
@@ -71,14 +72,14 @@ EVALUATE CALCULATETABLE(
     ROW("Total", [Chamadas Atendidas]),
     MONTH('dCalendario'[Date]) = MONTH(TODAY()),
     YEAR('dCalendario'[Date]) = YEAR(TODAY()),
-    dGrupoEmpresa[secao_resumido] = "Ligue 180"
+    dGrupoEmpresa[secao_resumido] = "NomeDoContrato"
 )
 
 Tabela agrupada com filtros de data e contrato:
 EVALUATE SUMMARIZECOLUMNS(
     'dHorarioIntervalo'[Intervalo de Hora],
     FILTER(ALL('dCalendario'), 'dCalendario'[Date] = TODAY() - 1),
-    FILTER(ALL(dGrupoEmpresa), dGrupoEmpresa[secao_resumido] = "Ligue 180"),
+    FILTER(ALL(dGrupoEmpresa), dGrupoEmpresa[secao_resumido] = "NomeDoContrato"),
     "Total", [Chamadas Atendidas]
 )
 
@@ -106,7 +107,7 @@ Para grafico de chamadas por hora (padrao quando nao especificado):
 EVALUATE SUMMARIZECOLUMNS(
     'dHorarioIntervalo'[Intervalo de Hora],
     FILTER(ALL('dCalendario'), 'dCalendario'[Date] = TODAY() - 1),
-    FILTER(ALL(dGrupoEmpresa), dGrupoEmpresa[secao_resumido] = "Ligue 180"),
+    FILTER(ALL(dGrupoEmpresa), dGrupoEmpresa[secao_resumido] = "NomeDoContrato"),
     "Total", [Chamadas Bilhetadas]
 )
 
