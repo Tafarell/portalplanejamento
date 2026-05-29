@@ -108,85 +108,64 @@ def _clean_key(k: str) -> str:
     return k
 
 
-def discover_schema(dataset_id: str, token: str, workspace_id: Optional[str] = None) -> dict:
+def explore_tables_columns(
+    dataset_id: str,
+    token: str,
+    table_names: list[str],
+    workspace_id: Optional[str] = None,
+) -> dict:
     """
-    Descobre automaticamente o schema do dataset via DAX INFO functions.
+    Para cada tabela informada, executa EVALUATE TOPN(1, 'Tabela') e extrai
+    os nomes das colunas dos cabeçalhos da resposta.
+
     Retorna:
       {
-        "schema_text": str,   # texto formatado pronto para schema_context
-        "tables": list[str],  # nomes das tabelas
-        "error": str|None
+        "schema_text": str,          # pronto para colar em schema_context
+        "tables_found": list[str],   # tabelas consultadas com sucesso
+        "errors": dict[str, str],    # tabelas que falharam → mensagem de erro
       }
     """
-
-    # ── 1. Tabelas ────────────────────────────────────────────────────────────
-    t_res = execute_dax_query(
-        dataset_id,
-        'EVALUATE SELECTCOLUMNS(FILTER(INFO.TABLES(), NOT [IsHidden]), "ID", [ID], "Nome", [Name])',
-        token, workspace_id,
-    )
-    if t_res.get("error"):
-        return {"schema_text": "", "tables": [], "error": f"INFO functions indisponíveis: {t_res['error']}"}
-
-    tables: dict[int, str] = {}
-    for row in t_res["rows"]:
-        clean = {_clean_key(k): v for k, v in row.items()}
-        tid, tname = clean.get("ID"), clean.get("Nome")
-        if tid is not None and tname:
-            tables[tid] = tname
-
-    # ── 2. Colunas ────────────────────────────────────────────────────────────
-    c_res = execute_dax_query(
-        dataset_id,
-        'EVALUATE SELECTCOLUMNS('
-        'FILTER(INFO.COLUMNS(), NOT [IsHidden] && [State] = 1 && [Type] <> 3),'
-        ' "TableID", [TableID], "Coluna", [ExplicitName], "Tipo", [DataType])',
-        token, workspace_id,
-    )
-    table_columns: dict[str, list[str]] = {}
-    for row in c_res.get("rows", []):
-        clean = {_clean_key(k): v for k, v in row.items()}
-        tid = clean.get("TableID")
-        col = clean.get("Coluna")
-        if not col:
-            continue
-        tname = tables.get(tid, f"Tabela_{tid}")
-        table_columns.setdefault(tname, []).append(col)
-
-    # ── 3. Medidas ────────────────────────────────────────────────────────────
-    m_res = execute_dax_query(
-        dataset_id,
-        'EVALUATE SELECTCOLUMNS(INFO.MEASURES(), "TableID", [TableID], "Medida", [Name])',
-        token, workspace_id,
-    )
-    table_measures: dict[str, list[str]] = {}
-    for row in m_res.get("rows", []):
-        clean = {_clean_key(k): v for k, v in row.items()}
-        tid = clean.get("TableID")
-        measure = clean.get("Medida")
-        if not measure:
-            continue
-        tname = tables.get(tid, f"Tabela_{tid}")
-        table_measures.setdefault(tname, []).append(measure)
-
-    # ── 4. Formata o texto do schema ──────────────────────────────────────────
+    tables_found: list[str] = []
+    errors: dict[str, str] = {}
     lines: list[str] = []
-    all_names = sorted(set(list(table_columns) + list(table_measures)))
-    for tname in all_names:
+
+    for raw_name in table_names:
+        tname = raw_name.strip()
+        if not tname:
+            continue
+
+        # Usa aspas simples para nomes com caracteres especiais (ex: dContratados&Desligados)
+        dax = f"EVALUATE TOPN(1, '{tname}')"
+        result = execute_dax_query(dataset_id, dax, token, workspace_id)
+
         lines.append(f"Tabela: {tname}")
-        cols = table_columns.get(tname, [])
-        if cols:
-            lines.append(f"  Colunas: {', '.join(cols)}")
-        measures = table_measures.get(tname, [])
-        if measures:
-            lines.append(f"  Medidas: {', '.join(f'[{m}]' for m in measures)}")
+
+        if result.get("error"):
+            errors[tname] = result["error"]
+            lines.append(f"  ⚠️ Erro: {result['error']}")
+        else:
+            rows = result.get("rows", [])
+            if rows:
+                cols = [_clean_key(k) for k in rows[0].keys()]
+                lines.append(f"  Colunas: {', '.join(cols)}")
+                tables_found.append(tname)
+            else:
+                lines.append("  Colunas: (tabela vazia)")
+                tables_found.append(tname)
+
+        lines.append(f"  Medidas: (adicione manualmente)")
         lines.append("")
 
     return {
         "schema_text": "\n".join(lines).strip(),
-        "tables": list(tables.values()),
-        "error": None,
+        "tables_found": tables_found,
+        "errors": errors,
     }
+
+
+def discover_schema(dataset_id: str, token: str, workspace_id: Optional[str] = None) -> dict:
+    """Alias mantido para compatibilidade — INFO functions não suportadas neste modelo."""
+    return {"schema_text": "", "tables": [], "error": "INFO functions indisponíveis. Use explore_tables_columns()."}
 
 
 def format_rows_for_llm(result: dict, max_rows: int = 200) -> str:

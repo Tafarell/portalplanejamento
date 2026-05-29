@@ -1,12 +1,13 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
-from typing import Optional
+from typing import Optional, List
 from app.database import get_db
 from app.models.pbi_connection import PBIConnection
 from app.models.user import User, UserRole
 from app.utils.security import get_current_user
-from app.services.powerbi_service import get_pbi_token, test_connection as pbi_test_connection, execute_dax_query, discover_schema as pbi_discover_schema
+from typing import List
+from app.services.powerbi_service import get_pbi_token, test_connection as pbi_test_connection, execute_dax_query, explore_tables_columns
 
 router = APIRouter(prefix="/api/powerbi", tags=["Power BI"])
 
@@ -127,14 +128,22 @@ def get_schema(db: Session = Depends(get_db),
     return {"schema": conn.schema_context or ""}
 
 
-@router.post("/discover-schema")
-def discover_schema_endpoint(db: Session = Depends(get_db),
-                             current_user: User = Depends(get_current_user)):
+class ExploreTablesIn(BaseModel):
+    table_names: List[str]
+
+
+@router.post("/explore-tables")
+def explore_tables_endpoint(data: ExploreTablesIn,
+                            db: Session = Depends(get_db),
+                            current_user: User = Depends(get_current_user)):
     """
-    Descobre automaticamente tabelas, colunas e medidas via DAX INFO functions.
-    Retorna o schema_text formatado e salva na conexão. Apenas admin.
+    Para cada tabela informada, executa EVALUATE TOPN(1, Tabela) e extrai colunas.
+    Salva o schema_text gerado na conexão ativa. Apenas admin.
     """
     _require_admin(current_user)
+
+    if not data.table_names:
+        raise HTTPException(status_code=422, detail="Informe ao menos uma tabela.")
 
     conn = db.query(PBIConnection).filter(PBIConnection.is_active == True).first()
     if not conn:
@@ -142,20 +151,17 @@ def discover_schema_endpoint(db: Session = Depends(get_db),
 
     try:
         token  = get_pbi_token(conn.tenant_id, conn.client_id, conn.client_secret)
-        result = pbi_discover_schema(conn.dataset_id, token, conn.workspace_id)
+        result = explore_tables_columns(conn.dataset_id, token, data.table_names, conn.workspace_id)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-    if result.get("error"):
-        raise HTTPException(status_code=422, detail=result["error"])
-
-    # Salva automaticamente no banco
+    # Salva automaticamente no banco (merge com o que já existe)
     conn.schema_context = result["schema_text"]
     db.commit()
 
     return {
         "ok": True,
         "schema_text": result["schema_text"],
-        "tables": result["tables"],
-        "table_count": len(result["tables"]),
+        "tables_found": result["tables_found"],
+        "errors": result["errors"],
     }
