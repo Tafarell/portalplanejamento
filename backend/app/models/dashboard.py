@@ -1,14 +1,7 @@
-import enum
 from datetime import datetime
-from sqlalchemy import Column, Integer, String, Boolean, DateTime, Enum, Text, ForeignKey
+from sqlalchemy import Column, Integer, String, Boolean, DateTime, Text, ForeignKey
 from sqlalchemy.orm import relationship
 from app.database import Base
-
-class DashboardCategory(str, enum.Enum):
-    BI = "bi"
-    APP = "app"
-    REPORT = "report"
-    OTHER = "other"
 
 class Dashboard(Base):
     __tablename__ = "dashboards"
@@ -16,7 +9,7 @@ class Dashboard(Base):
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String(200), nullable=False)
     description = Column(Text, nullable=True)
-    category = Column(Enum(DashboardCategory), default=DashboardCategory.BI)
+    category = Column(String(50), default="bi")
     embed_url = Column(Text, nullable=False)
     cover_image_url = Column(String(500), nullable=True)
     parquet_file = Column(String(500), nullable=True)

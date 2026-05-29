@@ -1,47 +1,60 @@
 import { useState, useEffect } from 'react'
 import api from '../../api/axios'
 import Layout from '../../components/Layout'
-import { Plus, Pencil, Trash2, ToggleLeft, ToggleRight, Search, X, Image, BarChart3 } from 'lucide-react'
+import { Plus, Pencil, Trash2, ToggleLeft, ToggleRight, Search, X, Image, BarChart3, Settings, ChevronRight } from 'lucide-react'
 
 const EMPTY = {
   name: '', description: '', category: 'bi', embed_url: '',
   tags: '', is_active: true, is_public: false,
-  contrato_id: '', dax_context: ''
+  contrato_id: '', dax_context: '',
+  _grupo_id: ''   // campo auxiliar, não vai pro backend
 }
 
-const catColors = { bi: 'bg-blue-100 text-blue-700', app: 'bg-purple-100 text-purple-700', report: 'bg-green-100 text-green-700', other: 'bg-gray-100 text-gray-700' }
-const catLabels = { bi: 'Dashboard BI', app: 'Aplicativo', report: 'Relatório', other: 'Outro' }
+const CAT_ICONS = { bi: '📊', app: '🖥️', report: '📄' }
 
 export default function AdminDashboards() {
   const [dashboards, setDashboards] = useState([])
   const [contratos, setContratos] = useState([])
   const [grupos, setGrupos] = useState([])
+  const [categories, setCategories] = useState([])
   const [search, setSearch] = useState('')
-  const [filterGrupo, setFilterGrupo] = useState('')
   const [modal, setModal] = useState(false)
+  const [catModal, setCatModal] = useState(false)
   const [form, setForm] = useState(EMPTY)
   const [editId, setEditId] = useState(null)
   const [loading, setLoading] = useState(false)
 
+  // category form
+  const CAT_EMPTY = { name: '', slug: '', icon: 'BarChart3', order: 0, is_active: true }
+  const [catForm, setCatForm] = useState(CAT_EMPTY)
+  const [catEditId, setCatEditId] = useState(null)
+  const [catLoading, setCatLoading] = useState(false)
+  const [showCatPanel, setShowCatPanel] = useState(false)
+
   const fetchAll = async () => {
-    const [d, c, g] = await Promise.all([
+    const [d, c, g, cats] = await Promise.all([
       api.get('/dashboards/admin'),
       api.get('/contratos'),
       api.get('/grupos'),
+      api.get('/categories'),
     ])
     setDashboards(d.data)
     setContratos(c.data)
     setGrupos(g.data)
+    setCategories(cats.data)
   }
   useEffect(() => { fetchAll() }, [])
 
   const openCreate = () => { setForm(EMPTY); setEditId(null); setModal(true) }
   const openEdit = d => {
+    // descobrir grupo do contrato selecionado
+    const contrato = contratos.find(c => c.id === d.contrato_id)
     setForm({
       name: d.name, description: d.description || '', category: d.category,
       embed_url: d.embed_url, tags: d.tags || '', is_active: d.is_active,
       is_public: d.is_public, contrato_id: d.contrato_id || '',
-      dax_context: d.dax_context || ''
+      dax_context: d.dax_context || '',
+      _grupo_id: contrato?.grupo_id || ''
     })
     setEditId(d.id); setModal(true)
   }
@@ -49,9 +62,10 @@ export default function AdminDashboards() {
   const save = async e => {
     e.preventDefault(); setLoading(true)
     try {
-      const payload = { ...form, contrato_id: form.contrato_id ? Number(form.contrato_id) : null }
-      if (editId) await api.put(`/dashboards/${editId}`, payload)
-      else await api.post('/dashboards', payload)
+      const { _grupo_id, ...payload } = form
+      const finalPayload = { ...payload, contrato_id: payload.contrato_id ? Number(payload.contrato_id) : null }
+      if (editId) await api.put(`/dashboards/${editId}`, finalPayload)
+      else await api.post('/dashboards', finalPayload)
       setModal(false); fetchAll()
     } finally { setLoading(false) }
   }
@@ -68,36 +82,129 @@ export default function AdminDashboards() {
     await api.post(`/dashboards/${id}/cover`, fd); fetchAll()
   }
 
-  // Contratos filtrados pelo grupo selecionado no formulário
-  const contratosDoGrupo = filterGrupo
-    ? contratos.filter(c => c.grupo_id === Number(filterGrupo))
+  // Contratos filtrados pelo grupo selecionado no form
+  const contratosDoGrupo = form._grupo_id
+    ? contratos.filter(c => c.grupo_id === Number(form._grupo_id))
     : contratos
 
-  const filtered = dashboards.filter(d => {
-    const matchSearch = d.name.toLowerCase().includes(search.toLowerCase())
-    return matchSearch
-  })
+  const setGrupoForm = (grupoId) => {
+    setForm(f => ({ ...f, _grupo_id: grupoId, contrato_id: '' }))
+  }
+
+  const filtered = dashboards.filter(d =>
+    d.name.toLowerCase().includes(search.toLowerCase())
+  )
+
+  const getCatLabel = (slug) => {
+    const cat = categories.find(c => c.slug === slug)
+    return cat ? cat.name : slug
+  }
+
+  const getCatColor = (slug) => {
+    const colors = { bi: 'bg-blue-100 text-blue-700', app: 'bg-purple-100 text-purple-700', report: 'bg-green-100 text-green-700' }
+    return colors[slug] || 'bg-gray-100 text-gray-700'
+  }
+
+  // Category management
+  const openCatCreate = () => { setCatForm(CAT_EMPTY); setCatEditId(null) }
+  const openCatEdit = cat => {
+    setCatForm({ name: cat.name, slug: cat.slug, icon: cat.icon || 'BarChart3', order: cat.order, is_active: cat.is_active })
+    setCatEditId(cat.id)
+  }
+  const saveCat = async e => {
+    e.preventDefault(); setCatLoading(true)
+    try {
+      if (catEditId) await api.put(`/categories/${catEditId}`, catForm)
+      else await api.post('/categories', catForm)
+      setCatEditId(null); setCatForm(CAT_EMPTY); fetchAll()
+    } finally { setCatLoading(false) }
+  }
+  const removeCat = async id => {
+    if (!confirm('Remover categoria?')) return
+    await api.delete(`/categories/${id}`); fetchAll()
+  }
 
   return (
     <Layout>
       <div className="p-5">
-        <div className="flex items-center justify-between mb-6">
+        {/* Header */}
+        <div className="flex items-center justify-between mb-5">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Dashboards & Aplicativos</h1>
-            <p className="text-gray-500 text-sm mt-1">{dashboards.length} itens cadastrados</p>
+            <h1 className="text-xl font-bold text-gray-900">Painéis</h1>
+            <p className="text-gray-500 text-sm mt-0.5">{dashboards.length} itens cadastrados</p>
           </div>
-          <button onClick={openCreate} className="btn-primary flex items-center gap-2">
-            <Plus className="w-4 h-4" /> Novo Item
-          </button>
+          <div className="flex items-center gap-2">
+            <button onClick={() => setShowCatPanel(v => !v)} className="flex items-center gap-1.5 text-sm text-gray-600 hover:text-gray-900 border border-gray-200 rounded-lg px-3 py-2 hover:bg-gray-50 transition-colors">
+              <Settings className="w-4 h-4" />
+              Categorias
+            </button>
+            <button onClick={openCreate} className="btn-primary flex items-center gap-2">
+              <Plus className="w-4 h-4" /> Novo Painel
+            </button>
+          </div>
         </div>
 
-        <div className="flex flex-col sm:flex-row gap-3 mb-4">
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-            <input value={search} onChange={e => setSearch(e.target.value)} className="input pl-9" placeholder="Buscar dashboards..." />
+        {/* Category Management Panel */}
+        {showCatPanel && (
+          <div className="card p-4 mb-5 border border-blue-100 bg-blue-50/30">
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="font-semibold text-gray-800 text-sm">Gerenciar Categorias</h2>
+              <button onClick={() => { setShowCatPanel(false); setCatEditId(null); setCatForm(CAT_EMPTY) }} className="text-gray-400 hover:text-gray-600">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Category list */}
+            <div className="space-y-1.5 mb-4">
+              {categories.map(cat => (
+                <div key={cat.id} className={`flex items-center gap-3 px-3 py-2 rounded-lg ${catEditId === cat.id ? 'bg-blue-100' : 'bg-white border border-gray-100'}`}>
+                  <span className="text-sm font-medium text-gray-800 flex-1">{cat.name}</span>
+                  <code className="text-xs text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded">{cat.slug}</code>
+                  <span className={`text-xs px-1.5 py-0.5 rounded-full ${cat.is_active ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-600'}`}>
+                    {cat.is_active ? 'Ativa' : 'Inativa'}
+                  </span>
+                  <button onClick={() => openCatEdit(cat)} className="p-1 text-gray-400 hover:text-blue-600 rounded"><Pencil className="w-3.5 h-3.5" /></button>
+                  <button onClick={() => removeCat(cat.id)} className="p-1 text-gray-400 hover:text-red-500 rounded"><Trash2 className="w-3.5 h-3.5" /></button>
+                </div>
+              ))}
+            </div>
+
+            {/* Add/Edit form */}
+            <form onSubmit={saveCat} className="border-t border-gray-200 pt-3">
+              <p className="text-xs font-semibold text-gray-500 uppercase mb-2">{catEditId ? 'Editar categoria' : 'Nova categoria'}</p>
+              <div className="flex flex-wrap gap-2 items-end">
+                <div>
+                  <label className="text-xs text-gray-500 block mb-1">Nome</label>
+                  <input value={catForm.name} onChange={e => setCatForm({...catForm, name: e.target.value})} required className="input text-sm py-1.5 w-36" placeholder="Ex: Dashboards" />
+                </div>
+                <div>
+                  <label className="text-xs text-gray-500 block mb-1">Slug</label>
+                  <input value={catForm.slug} onChange={e => setCatForm({...catForm, slug: e.target.value})} required className="input text-sm py-1.5 w-24" placeholder="Ex: bi" />
+                </div>
+                <div>
+                  <label className="text-xs text-gray-500 block mb-1">Ordem</label>
+                  <input type="number" value={catForm.order} onChange={e => setCatForm({...catForm, order: Number(e.target.value)})} className="input text-sm py-1.5 w-16" />
+                </div>
+                <label className="flex items-center gap-1.5 text-sm text-gray-700 pb-1">
+                  <input type="checkbox" checked={catForm.is_active} onChange={e => setCatForm({...catForm, is_active: e.target.checked})} className="rounded" />
+                  Ativa
+                </label>
+                <button type="submit" disabled={catLoading} className="btn-primary text-sm py-1.5">{catLoading ? 'Salvando...' : catEditId ? 'Salvar' : 'Adicionar'}</button>
+                {catEditId && (
+                  <button type="button" onClick={() => { setCatEditId(null); setCatForm(CAT_EMPTY) }} className="text-sm text-gray-500 hover:text-gray-700 py-1.5">Cancelar</button>
+                )}
+              </div>
+            </form>
           </div>
+        )}
+
+        {/* Search */}
+        <div className="relative mb-4">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+          <input value={search} onChange={e => setSearch(e.target.value)} className="input pl-9" placeholder="Buscar painéis..." />
         </div>
 
+        {/* Table */}
         <div className="card overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
@@ -124,12 +231,10 @@ export default function AdminDashboards() {
                       </div>
                     </td>
                     <td className="px-4 py-3">
-                      <span className={`badge ${catColors[d.category] || 'bg-gray-100 text-gray-700'}`}>
-                        {catLabels[d.category] || d.category}
-                      </span>
+                      <span className={`badge ${getCatColor(d.category)}`}>{getCatLabel(d.category)}</span>
                     </td>
-                    <td className="px-4 py-3 text-gray-500 text-sm">{d.contrato_name || '—'}</td>
-                    <td className="px-4 py-3 text-gray-500 text-sm">{d.grupo_name || '—'}</td>
+                    <td className="px-4 py-3 text-gray-500">{d.contrato_name || '—'}</td>
+                    <td className="px-4 py-3 text-gray-500">{d.grupo_name || '—'}</td>
                     <td className="px-4 py-3">
                       <span className={`badge ${d.is_active ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-600'}`}>
                         {d.is_active ? 'Ativo' : 'Inativo'}
@@ -159,18 +264,19 @@ export default function AdminDashboards() {
             {filtered.length === 0 && (
               <div className="text-center py-16 text-gray-400">
                 <BarChart3 className="w-12 h-12 mx-auto mb-3 opacity-30" />
-                <p>Nenhum dashboard encontrado</p>
+                <p>Nenhum painel encontrado</p>
               </div>
             )}
           </div>
         </div>
       </div>
 
+      {/* Dashboard Modal */}
       {modal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
           <div className="bg-white rounded-2xl w-full max-w-2xl shadow-2xl max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
-              <h2 className="font-semibold text-lg">{editId ? 'Editar' : 'Novo'} Dashboard</h2>
+              <h2 className="font-semibold text-lg">{editId ? 'Editar' : 'Novo'} Painel</h2>
               <button onClick={() => setModal(false)} className="p-1 text-gray-400 hover:text-gray-700"><X className="w-5 h-5" /></button>
             </div>
             <form onSubmit={save} className="p-6 space-y-4">
@@ -178,26 +284,32 @@ export default function AdminDashboards() {
                 <label className="block text-sm font-medium text-gray-700 mb-1">Nome *</label>
                 <input value={form.name} onChange={e => setForm({...form, name: e.target.value})} required className="input" />
               </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Categoria</label>
+                <select value={form.category} onChange={e => setForm({...form, category: e.target.value})} className="input">
+                  {categories.map(c => <option key={c.id} value={c.slug}>{c.name}</option>)}
+                </select>
+              </div>
+
+              {/* Grupo → Contrato cascade */}
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Categoria</label>
-                  <select value={form.category} onChange={e => setForm({...form, category: e.target.value})} className="input">
-                    <option value="bi">Dashboard BI</option>
-                    <option value="app">Aplicativo</option>
-                    <option value="report">Relatório</option>
-                    <option value="other">Outro</option>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Grupo</label>
+                  <select value={form._grupo_id} onChange={e => setGrupoForm(e.target.value)} className="input">
+                    <option value="">Todos os grupos</option>
+                    {grupos.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
                   </select>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Contrato</label>
                   <select value={form.contrato_id} onChange={e => setForm({...form, contrato_id: e.target.value})} className="input">
                     <option value="">Sem contrato</option>
-                    {contratos.map(c => (
-                      <option key={c.id} value={c.id}>{c.grupo_name ? `${c.grupo_name} › ${c.name}` : c.name}</option>
-                    ))}
+                    {contratosDoGrupo.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                   </select>
                 </div>
               </div>
+
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">URL de Embed / Link *</label>
                 <input value={form.embed_url} onChange={e => setForm({...form, embed_url: e.target.value})} required className="input" placeholder="https://..." />

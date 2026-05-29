@@ -5,7 +5,7 @@ from app.config import settings
 from app.database import Base, engine
 from app.models import *  # garante que todos os models são importados antes do create_all
 from app.routers import auth, users, clients, dashboards, permissions, access_logs, ai_assistant
-from app.routers import grupos, contratos
+from app.routers import grupos, contratos, categories
 from app.utils.security import hash_password
 
 app = FastAPI(
@@ -30,6 +30,7 @@ def startup():
     Base.metadata.create_all(bind=engine)
     _run_migrations()
     _seed_admin()
+    _seed_categories()
 
 def _run_migrations():
     """Adiciona colunas novas às tabelas existentes (idempotente)."""
@@ -40,6 +41,8 @@ def _run_migrations():
         "ALTER TABLE permissions ADD COLUMN IF NOT EXISTS contrato_id INTEGER REFERENCES contratos(id)",
         "ALTER TABLE permissions ADD COLUMN IF NOT EXISTS grupo_id INTEGER REFERENCES clients(id)",
         "ALTER TABLE permissions ALTER COLUMN dashboard_id DROP NOT NULL",
+        # Converte category de ENUM para VARCHAR para suportar categorias dinâmicas
+        "ALTER TABLE dashboards ALTER COLUMN category TYPE VARCHAR(50) USING category::VARCHAR",
     ]
     with engine.connect() as conn:
         for sql in migrations:
@@ -48,6 +51,24 @@ def _run_migrations():
                 conn.commit()
             except Exception:
                 conn.rollback()
+
+def _seed_categories():
+    """Cria categorias padrão se não existirem."""
+    from app.database import SessionLocal
+    from app.models.category import Category
+    db = SessionLocal()
+    try:
+        if db.query(Category).count() == 0:
+            defaults = [
+                Category(name="Dashboards", slug="bi", icon="BarChart3", order=0),
+                Category(name="Aplicativos", slug="app", icon="Monitor", order=1),
+                Category(name="Relatórios", slug="report", icon="FileText", order=2),
+            ]
+            db.add_all(defaults)
+            db.commit()
+            print("✅ Categorias padrão criadas")
+    finally:
+        db.close()
 
 def _seed_admin():
     """Cria o usuário administrador padrão se não existir."""
@@ -79,6 +100,7 @@ app.include_router(dashboards.router)
 app.include_router(permissions.router)
 app.include_router(access_logs.router)
 app.include_router(ai_assistant.router)
+app.include_router(categories.router)
 
 @app.get("/api/health")
 def health():

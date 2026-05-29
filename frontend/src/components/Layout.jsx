@@ -1,17 +1,16 @@
 import { useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
-import { Users, LogOut, Menu, X, BarChart3, Bot, Building2, Shield, FileText, Monitor, ChevronLeft, ChevronRight } from 'lucide-react'
+import { Users, LogOut, Menu, X, BarChart3, Bot, Building2, Shield, FileText, ChevronLeft, ChevronRight } from 'lucide-react'
 import clsx from 'clsx'
 
 const navItems = [
-  { to: '/?tab=bi', label: 'Dashboards', icon: BarChart3, tabKey: 'bi' },
-  { to: '/?tab=app', label: 'Aplicativos', icon: Monitor, tabKey: 'app' },
+  { to: '/', label: 'Painel', icon: BarChart3, exact: true },
   { to: '/ai', label: 'Assistente IA', icon: Bot, exact: true, internalOnly: true },
 ]
 
 const adminItems = [
-  { to: '/admin/dashboards', label: 'Dashboards', icon: BarChart3 },
+  { to: '/admin/dashboards', label: 'Painéis', icon: BarChart3 },
   { to: '/admin/users', label: 'Usuários', icon: Users },
   { to: '/admin/grupos', label: 'Grupos & Contratos', icon: Building2 },
   { to: '/admin/permissions', label: 'Permissões', icon: Shield },
@@ -51,11 +50,7 @@ export default function Layout({ children }) {
   }
 
   const isActive = (item) => {
-    if (item.tabKey) {
-      const params = new URLSearchParams(location.search)
-      return location.pathname === '/' && params.get('tab') === item.tabKey
-    }
-    if (item.exact) return location.pathname === item.to
+    if (item.exact) return location.pathname === item.to.split('?')[0]
     return location.pathname.startsWith(item.to)
   }
 

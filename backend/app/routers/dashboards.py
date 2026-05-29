@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import or_
 from typing import List, Optional
 from app.database import get_db
-from app.models.dashboard import Dashboard, DashboardCategory
+from app.models.dashboard import Dashboard
 from app.models.permission import Permission, PermissionScope
 from app.models.contrato import Contrato
 from app.models.access_log import AccessLog
