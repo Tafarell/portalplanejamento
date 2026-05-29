@@ -39,59 +39,65 @@ function BarChartSVG({ chart }) {
   const { labels = [], values = [], title, label } = chart
   if (!labels.length || !values.length) return null
 
-  const W = 560, H = 200, PL = 56, PR = 12, PT = 10, PB = 60
+  const W = 580, H = 220, PL = 52, PR = 16, PT = 16, PB = 56
   const maxVal = Math.max(...values, 1)
-  const barW = Math.max(4, Math.floor((W - PL - PR) / labels.length) - 2)
-  const gap = Math.floor((W - PL - PR) / labels.length)
+  const n = labels.length
+  const totalW = W - PL - PR
+  const gap = totalW / n
+  const barW = Math.max(6, Math.min(36, gap * 0.6))
   const fmt = v => v >= 1000 ? (v / 1000).toFixed(1) + 'k' : String(v)
-
-  // Y ticks
   const ticks = 4
   const yTicks = Array.from({ length: ticks + 1 }, (_, i) => Math.round(maxVal * i / ticks))
+  const gradId = 'bargrad' + Math.random().toString(36).slice(2,6)
 
   return (
-    <div className="mt-3 bg-white border border-gray-100 rounded-xl p-4 shadow-sm overflow-x-auto">
-      {title && <p className="text-xs font-semibold text-gray-600 mb-2">{title}</p>}
-      <svg width="100%" viewBox={`0 0 ${W} ${H + PB}`} style={{ minWidth: Math.min(W, labels.length * 20 + PL + PR) }}>
-        {/* Y axis ticks & grid */}
-        {yTicks.map(t => {
-          const y = PT + (H - PT) * (1 - t / maxVal)
-          return (
-            <g key={t}>
-              <line x1={PL} y1={y} x2={W - PR} y2={y} stroke="#f3f4f6" strokeWidth="1" />
-              <text x={PL - 4} y={y + 3} textAnchor="end" fontSize="9" fill="#9ca3af">{fmt(t)}</text>
-            </g>
-          )
-        })}
-        {/* Bars */}
-        {values.map((v, i) => {
-          const barH = Math.max(1, ((v / maxVal) * (H - PT)))
-          const x = PL + i * gap + (gap - barW) / 2
-          const y = PT + (H - PT) - barH
-          const color = COLORS[i % COLORS.length]
-          return (
-            <g key={i}>
-              <rect x={x} y={y} width={barW} height={barH} fill={color} rx="2" opacity="0.85" />
-              {barH > 16 && (
-                <text x={x + barW / 2} y={y - 2} textAnchor="middle" fontSize="7" fill="#6b7280">{fmt(v)}</text>
-              )}
-              {/* X label - rotated */}
-              <text
-                x={x + barW / 2}
-                y={H + 14}
-                textAnchor="end"
-                fontSize="8"
-                fill="#6b7280"
-                transform={`rotate(-40, ${x + barW / 2}, ${H + 14})`}
-              >{labels[i]}</text>
-            </g>
-          )
-        })}
-        {/* Axes */}
-        <line x1={PL} y1={PT} x2={PL} y2={H} stroke="#d1d5db" strokeWidth="1" />
-        <line x1={PL} y1={H} x2={W - PR} y2={H} stroke="#d1d5db" strokeWidth="1" />
-      </svg>
-      {label && <p className="text-xs text-gray-400 text-center mt-1">{label}</p>}
+    <div className="mt-3 rounded-2xl overflow-hidden shadow-md" style={{background:'linear-gradient(135deg,#1e1b4b 0%,#312e81 100%)'}}>
+      {title && (
+        <div className="px-5 pt-4 pb-1">
+          <p className="text-sm font-semibold text-indigo-100">{title}</p>
+          {label && <p className="text-xs text-indigo-400 mt-0.5">{label}</p>}
+        </div>
+      )}
+      <div className="overflow-x-auto px-2 pb-4">
+        <svg width="100%" viewBox={`0 0 ${W} ${H + PB}`} style={{minWidth: Math.max(W, n * 22 + PL + PR)}}>
+          <defs>
+            <linearGradient id={gradId} x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#a5b4fc" />
+              <stop offset="100%" stopColor="#6366f1" />
+            </linearGradient>
+          </defs>
+          {/* Grid lines */}
+          {yTicks.map(t => {
+            const y = PT + (H - PT) * (1 - t / maxVal)
+            return (
+              <g key={t}>
+                <line x1={PL} y1={y} x2={W - PR} y2={y} stroke="rgba(255,255,255,0.08)" strokeWidth="1" strokeDasharray="4 3"/>
+                <text x={PL - 6} y={y + 3.5} textAnchor="end" fontSize="9" fill="#a5b4fc" fontFamily="sans-serif">{fmt(t)}</text>
+              </g>
+            )
+          })}
+          {/* Bars */}
+          {values.map((v, i) => {
+            const barH = Math.max(2, (v / maxVal) * (H - PT))
+            const x = PL + i * gap + (gap - barW) / 2
+            const y = H - barH
+            const isMax = v === maxVal
+            return (
+              <g key={i}>
+                <rect x={x} y={y} width={barW} height={barH} fill={`url(#${gradId})`} rx="4" opacity={isMax ? 1 : 0.75}/>
+                {isMax && <rect x={x} y={y} width={barW} height={4} fill="#c7d2fe" rx="2"/>}
+                {barH > 20 && (
+                  <text x={x + barW/2} y={y - 4} textAnchor="middle" fontSize="8" fill="#e0e7ff" fontWeight="600" fontFamily="sans-serif">{fmt(v)}</text>
+                )}
+                <text x={x + barW/2} y={H + 14} textAnchor="end" fontSize="8" fill="#a5b4fc" fontFamily="sans-serif"
+                  transform={`rotate(-40,${x + barW/2},${H + 14})`}>{labels[i]}</text>
+              </g>
+            )
+          })}
+          {/* Base line */}
+          <line x1={PL} y1={H} x2={W - PR} y2={H} stroke="rgba(165,180,252,0.3)" strokeWidth="1"/>
+        </svg>
+      </div>
     </div>
   )
 }

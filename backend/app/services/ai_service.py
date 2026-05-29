@@ -95,19 +95,24 @@ NUNCA use sintaxe invalida:
 
 ## Graficos:
 Quando o usuario pedir um grafico:
-1. Se ja existe uma tabela/lista de dados na conversa, use esses dados diretamente — NAO execute nova query DAX.
-2. Se nao ha dados ainda, execute a query DAX adequada para obter os dados, depois gere o CHART_JSON.
+1. SEMPRE busque dados agrupados (por hora, dia, grupo, etc.) — NUNCA use um unico total como grafico.
+2. Se ja existe tabela com multiplos valores na conversa, use esses dados.
+3. Se nao ha dados agrupados, execute SUMMARIZECOLUMNS para obter o agrupamento adequado, depois gere o CHART_JSON.
+
+Para grafico de chamadas por hora (padrao quando nao especificado):
+EVALUATE SUMMARIZECOLUMNS(
+    'dHorarioIntervalo'[Intervalo de Hora],
+    FILTER(ALL('dCalendario'), 'dCalendario'[Date] = TODAY() - 1),
+    FILTER(ALL(dGrupoEmpresa), dGrupoEmpresa[secao_resumido] = "Ligue 180"),
+    "Total", [Chamadas Bilhetadas]
+)
 
 Apos a resposta textual, adicione na ultima linha:
 CHART_JSON:{"type":"bar","title":"Titulo","label":"Serie","labels":["label1","label2"],"values":[100,200]}
 
 Tipos: "bar" (barras), "line" (linha), "pie" (pizza).
-- O JSON deve ser valido, em uma unica linha, com aspas duplas ASCII.
-- "labels": lista de strings com os rotulos do eixo X
-- "values": lista de numeros correspondentes
-
-Exemplo correto para dados de chamadas por hora:
-CHART_JSON:{"type":"bar","title":"Chamadas por Hora","label":"Chamadas","labels":["08:00","09:00","10:00"],"values":[150,200,180]}
+- JSON valido, em uma unica linha, aspas duplas ASCII.
+- Minimo 3 pontos de dados para um grafico util.
 
 ## Data atual: DATA_HOJE
 ## Schema do dataset:
