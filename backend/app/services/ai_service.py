@@ -140,25 +140,34 @@ Execute queries adicionais se necessario para enriquecer a analise (ex: buscar d
 - Conclusao em italico no final
 
 ## Graficos:
-Quando o usuario pedir um grafico:
-1. SEMPRE busque dados agrupados (por hora, dia, grupo, etc.) — NUNCA use um unico total como grafico.
-2. Se ja existe tabela com multiplos valores na conversa, use esses dados.
-3. Se nao ha dados agrupados, execute SUMMARIZECOLUMNS para obter o agrupamento adequado, depois gere o CHART_JSON.
+CHART_JSON suporta UMA unica serie de dados (labels + values). Para gerar:
+1. Escolha UMA metrica principal (ex: Chamadas Atendidas, Chamadas Bilhetadas)
+2. Escolha UMA dimensao de agrupamento (ex: hora, dia, contrato)
+3. Execute query SIMPLES com apenas essa metrica e dimensao
+4. Gere o CHART_JSON na ultima linha da resposta
 
-Para grafico de chamadas por hora (padrao quando nao especificado):
+Query simples para grafico por hora:
 EVALUATE SUMMARIZECOLUMNS(
     'dHorarioIntervalo'[Intervalo de Hora],
     FILTER(ALL('dCalendário'), 'dCalendário'[Date] = TODAY() - 1),
     FILTER(ALL(dGrupoEmpresa), dGrupoEmpresa[secao_resumido] = "NomeDoContrato"),
-    "Total", [Chamadas Bilhetadas]
+    "Total", [Chamadas Atendidas]
 )
 
-Apos a resposta textual, adicione na ultima linha:
-CHART_JSON:{"type":"bar","title":"Titulo","label":"Serie","labels":["label1","label2"],"values":[100,200]}
+Query simples para grafico por dia:
+EVALUATE SUMMARIZECOLUMNS(
+    'dCalendário'[Date],
+    FILTER(ALL('dCalendário'), MONTH('dCalendário'[Date]) = MONTH(TODAY()) && YEAR('dCalendário'[Date]) = YEAR(TODAY())),
+    FILTER(ALL(dGrupoEmpresa), dGrupoEmpresa[secao_resumido] = "NomeDoContrato"),
+    "Total", [Chamadas Atendidas]
+)
 
-Tipos: "bar" (barras), "line" (linha), "pie" (pizza).
-- JSON valido, em uma unica linha, aspas duplas ASCII.
-- Minimo 3 pontos de dados para um grafico util.
+Formato obrigatorio na ultima linha:
+CHART_JSON:{"type":"bar","title":"Titulo","label":"Metrica","labels":["label1","label2"],"values":[100,200]}
+
+Tipos: "bar" (barras), "line" (linha para tendencia temporal), "pie" (pizza para proporcoes).
+- JSON valido em UMA unica linha
+- NUNCA tente colocar multiplas series no mesmo grafico
 
 ## Data atual: DATA_HOJE
 ## Schema do dataset:
