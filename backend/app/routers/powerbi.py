@@ -10,7 +10,7 @@ from app.services.powerbi_service import (
     get_pbi_token, test_connection as pbi_test_connection,
     execute_dax_query, explore_tables_columns, discover_schema_fabric,
     discover_schema as pbi_discover_schema,
-    discover_schema_scanner,
+    discover_schema_scanner, discover_schema_auto,
     _get_token, FABRIC_BASE_URL,
 )
 
@@ -148,7 +148,7 @@ def discover_schema_endpoint(db: Session = Depends(get_db),
     if not conn.workspace_id:
         raise HTTPException(status_code=422, detail="Workspace ID é obrigatório para o Scanner API.")
     try:
-        result = discover_schema_scanner(
+        result = discover_schema_auto(
             workspace_id=conn.workspace_id,
             dataset_id=conn.dataset_id,
             tenant_id=conn.tenant_id,
@@ -161,12 +161,13 @@ def discover_schema_endpoint(db: Session = Depends(get_db),
         raise HTTPException(status_code=422, detail=result["error"])
     conn.schema_context = result["schema_text"]
     db.commit()
-    lines = result["schema_text"].splitlines()
     return {
         "ok": True,
-        "schema_text": result["schema_text"],
-        "table_count":   sum(1 for l in lines if l.startswith("Tabela:")),
-        "measure_count": sum(l.count("[") for l in lines if "Medidas:" in l),
+        "schema_text":   result["schema_text"],
+        "table_count":   result.get("table_count", 0),
+        "measure_count": result.get("measure_count", 0),
+        "fallback":      result.get("fallback", False),
+        "scanner_error": result.get("scanner_error"),
     }
 
 

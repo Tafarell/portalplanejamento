@@ -153,13 +153,95 @@ def explore_tables_columns(
                 lines.append("  Colunas: (tabela vazia)")
                 tables_found.append(tname)
 
-        lines.append(f"  Medidas: (adicione manualmente)")
         lines.append("")
 
     return {
         "schema_text": "\n".join(lines).strip(),
         "tables_found": tables_found,
         "errors": errors,
+    }
+
+
+def _get_tables_list(dataset_id: str, token: str, workspace_id: Optional[str] = None) -> list[str]:
+    """Obtém a lista de tabelas via REST API padrão (sem permissão de admin)."""
+    if workspace_id:
+        url = f"https://api.powerbi.com/v1.0/myorg/groups/{workspace_id}/datasets/{dataset_id}/tables"
+    else:
+        url = f"https://api.powerbi.com/v1.0/myorg/datasets/{dataset_id}/tables"
+    with httpx.Client(timeout=30) as c:
+        resp = c.get(url, headers={"Authorization": f"Bearer {token}"})
+    if resp.status_code != 200:
+        return []
+    return [t["name"] for t in resp.json().get("value", [])]
+
+
+def discover_schema_auto(
+    workspace_id: str,
+    dataset_id: str,
+    tenant_id: str,
+    client_id: str,
+    client_secret: str,
+) -> dict:
+    """
+    Descobre schema completo com fallback automático:
+      1. Tenta Scanner Admin API (tabelas + colunas + medidas)
+      2. Se falhar (ex: sem permissão), usa GET /tables + EVALUATE TOPN para colunas
+
+    Retorna { "schema_text": str, "error": str|None, "fallback": bool,
+              "table_count": int, "measure_count": int }
+    """
+    # Tenta Scanner primeiro
+    result = discover_schema_scanner(
+        workspace_id=workspace_id,
+        dataset_id=dataset_id,
+        tenant_id=tenant_id,
+        client_id=client_id,
+        client_secret=client_secret,
+    )
+    if not result.get("error"):
+        lines = result["schema_text"].splitlines()
+        return {
+            **result,
+            "fallback": False,
+            "table_count":   sum(1 for l in lines if l.startswith("Tabela:")),
+            "measure_count": sum(l.count("[") for l in lines if "Medidas:" in l),
+        }
+
+    scanner_error = result["error"]
+
+    # Fallback: lista tabelas via API padrão + TOPN por tabela
+    token = get_pbi_token(tenant_id, client_id, client_secret)
+    table_names = _get_tables_list(dataset_id, token, workspace_id)
+
+    SKIP = {"DateTableTemplate", "LocalDateTable"}
+    table_names = [t for t in table_names if not any(t.startswith(s) for s in SKIP)]
+
+    if not table_names:
+        return {"schema_text": "", "error": scanner_error, "fallback": True,
+                "table_count": 0, "measure_count": 0}
+
+    col_result = explore_tables_columns(dataset_id, token, table_names, workspace_id)
+
+    # Remove linhas "Medidas: (adicione manualmente)" pois não temos medidas no fallback
+    clean_lines = [
+        l for l in col_result["schema_text"].splitlines()
+        if "Medidas: (adicione manualmente)" not in l
+    ]
+    schema_text = "\n".join(clean_lines).strip()
+
+    if schema_text:
+        schema_text += (
+            "\n\n# Medidas: não disponíveis sem permissão Admin API\n"
+            f"# (Erro Scanner: {scanner_error[:120]})"
+        )
+
+    return {
+        "schema_text": schema_text,
+        "error": None,
+        "fallback": True,
+        "scanner_error": scanner_error,
+        "table_count": len(col_result["tables_found"]),
+        "measure_count": 0,
     }
 
 

@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import api from '../../api/axios'
 import Layout from '../../components/Layout'
 import ConfirmDialog from '../../components/ConfirmDialog'
-import { Zap, CheckCircle2, XCircle, Loader2, Eye, EyeOff, Trash2, RefreshCw, Database, Wand2, ChevronDown, ChevronUp } from 'lucide-react'
+import { Zap, CheckCircle2, XCircle, Loader2, Eye, EyeOff, Trash2, RefreshCw, Database, Wand2, AlertCircle } from 'lucide-react'
 
 const EMPTY = { name: 'Conexão Power BI', dataset_id: '', workspace_id: '', tenant_id: '', client_id: '', client_secret: '', schema_context: '', is_active: true }
 
@@ -16,21 +16,9 @@ export default function AdminPBI() {
   const [confirmDel, setConfirmDel] = useState(false)
   const [saved, setSaved]       = useState(false)
 
-  // Fabric API — schema completo automático
-  const [fabricLoading, setFabricLoading] = useState(false)
-  const [fabricResult, setFabricResult]   = useState(null)
-
-  // Exploração de tabelas (fallback manual)
-  const [showExplorer, setShowExplorer] = useState(false)
-  const [tableInput, setTableInput]     = useState('')
-  const [exploring, setExploring]       = useState(false)
-  const [exploreResult, setExploreResult] = useState(null)
-
-  // Gerenciador de medidas
-  const [measureInput, setMeasureInput]   = useState('')
-  const [verifying, setVerifying]         = useState(false)
-  const [verifyResult, setVerifyResult]   = useState(null) // { exists, measure, error }
-  const [measures, setMeasures]           = useState([])   // lista local extraída do schema
+  // Detecção automática de schema
+  const [detecting, setDetecting] = useState(false)
+  const [detectResult, setDetectResult] = useState(null)
 
   const fetchConnection = async () => {
     try {
@@ -43,16 +31,6 @@ export default function AdminPBI() {
       }
     } catch { /* sem conexão */ }
   }
-
-  // Extrai medidas do schema_context quando ele mudar
-  useEffect(() => {
-    const schema = form.schema_context || ''
-    const found = []
-    const regex = /\[([^\]]+)\]/g
-    let m
-    while ((m = regex.exec(schema)) !== null) found.push(m[1])
-    setMeasures([...new Set(found)])
-  }, [form.schema_context])
 
   useEffect(() => { fetchConnection() }, [])
 
@@ -80,70 +58,16 @@ export default function AdminPBI() {
     } finally { setTesting(false) }
   }
 
-  const discoverFabric = async () => {
-    setFabricLoading(true)
-    setFabricResult(null)
+  const detectSchema = async () => {
+    setDetecting(true)
+    setDetectResult(null)
     try {
       const { data } = await api.post('/powerbi/discover-schema')
       setForm(f => ({ ...f, schema_context: data.schema_text }))
-      setFabricResult({ ok: true, table_count: data.table_count, measure_count: data.measure_count })
+      setDetectResult({ ok: true, ...data })
     } catch (e) {
-      setFabricResult({ ok: false, error: e?.response?.data?.detail || 'Erro ao acessar Fabric API' })
-    } finally { setFabricLoading(false) }
-  }
-
-  const exploreTables = async () => {
-    const names = tableInput
-      .split(/[\n,]+/)
-      .map(s => s.trim())
-      .filter(Boolean)
-    if (!names.length) return
-
-    setExploring(true)
-    setExploreResult(null)
-    try {
-      const { data } = await api.post('/powerbi/explore-tables', { table_names: names })
-      // Preenche o textarea com o schema descoberto
-      setForm(f => ({ ...f, schema_context: data.schema_text }))
-      setExploreResult(data)
-    } catch (e) {
-      setExploreResult({ ok: false, error: e?.response?.data?.detail || 'Erro ao explorar tabelas' })
-    } finally { setExploring(false) }
-  }
-
-  const verifyMeasure = async () => {
-    const name = measureInput.trim().replace(/^\[|\]$/g, '')
-    if (!name) return
-    setVerifying(true)
-    setVerifyResult(null)
-    try {
-      const { data } = await api.post('/powerbi/verify-measure', { measure_name: name })
-      if (data.exists) {
-        // Adiciona ao schema_context local
-        const entry = `[${name}]`
-        const schema = form.schema_context || ''
-        if (!schema.includes(entry)) {
-          const marker = '\n\n# Medidas verificadas:'
-          const newSchema = schema.includes(marker)
-            ? schema + `, ${entry}`
-            : schema + `${marker}\n${entry}`
-          setForm(f => ({ ...f, schema_context: newSchema }))
-        }
-        setMeasureInput('')
-      }
-      setVerifyResult(data)
-    } catch (e) {
-      setVerifyResult({ exists: false, error: e?.response?.data?.detail || 'Erro' })
-    } finally { setVerifying(false) }
-  }
-
-  const removeMeasure = (name) => {
-    const entry = `[${name}]`
-    const newSchema = (form.schema_context || '')
-      .replace(`, ${entry}`, '')
-      .replace(`${entry}, `, '')
-      .replace(entry, '')
-    setForm(f => ({ ...f, schema_context: newSchema }))
+      setDetectResult({ ok: false, error: e?.response?.data?.detail || 'Erro ao detectar schema' })
+    } finally { setDetecting(false) }
   }
 
   const deleteConn = async () => {
@@ -228,94 +152,45 @@ export default function AdminPBI() {
               <span className="text-gray-400 font-normal">(tabelas, colunas e medidas para a IA)</span>
             </label>
 
-            {/* Fabric API — schema completo automático */}
+            {/* Detecção automática de schema */}
             {existing && (
               <div className="mb-3 rounded-xl border border-indigo-200 bg-indigo-50/40 p-4 space-y-3">
                 <div className="flex items-start justify-between gap-3">
                   <div>
                     <p className="text-sm font-semibold text-indigo-800 flex items-center gap-1.5">
-                      <Wand2 className="w-4 h-4" /> Detecção completa via Fabric API
+                      <Wand2 className="w-4 h-4" /> Detecção automática de schema
                     </p>
                     <p className="text-xs text-indigo-600 mt-0.5">
-                      Busca tabelas, colunas <strong>e todas as medidas</strong> via <code className="bg-indigo-100 px-1 rounded">INFO.TABLES/COLUMNS/MEASURES</code>.
+                      Detecta todas as tabelas, colunas e medidas automaticamente. Se a permissão Admin API ainda não estiver ativa, detecta tabelas e colunas via API padrão.
                     </p>
                   </div>
-                  <button type="button" onClick={discoverFabric} disabled={fabricLoading}
+                  <button type="button" onClick={detectSchema} disabled={detecting}
                     className="flex-shrink-0 flex items-center gap-1.5 text-xs font-medium bg-indigo-600 text-white px-3 py-2 rounded-lg hover:bg-indigo-700 transition-colors disabled:opacity-50">
-                    {fabricLoading
-                      ? <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Buscando...</>
+                    {detecting
+                      ? <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Detectando...</>
                       : <><Wand2 className="w-3.5 h-3.5" /> Detectar tudo</>}
                   </button>
                 </div>
 
-                {fabricResult && (
-                  fabricResult.ok
-                    ? <p className="text-xs text-indigo-800 bg-white border border-indigo-200 rounded-lg px-3 py-2 flex items-center gap-1.5">
-                        <CheckCircle2 className="w-3.5 h-3.5 text-green-600 flex-shrink-0" />
-                        <strong>{fabricResult.table_count} tabelas</strong> e <strong>{fabricResult.measure_count} medidas</strong> detectadas — schema preenchido abaixo. Clique em <strong>Atualizar conexão</strong> para salvar.
-                      </p>
-                    : <p className="text-xs text-red-700 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
-                        ⚠️ {fabricResult.error}
-                      </p>
-                )}
-              </div>
-            )}
-
-            {/* Explorer de tabelas (fallback manual) */}
-            {existing && (
-              <div className="mb-3 rounded-xl border border-purple-200 bg-purple-50/40 overflow-hidden">
-                <button type="button"
-                  onClick={() => setShowExplorer(v => !v)}
-                  className="w-full flex items-center justify-between px-4 py-2.5 text-sm font-medium text-purple-800 hover:bg-purple-100/50 transition-colors">
-                  <span className="flex items-center gap-2">
-                    <Wand2 className="w-4 h-4" />
-                    Detectar colunas por tabela (fallback)
-                  </span>
-                  {showExplorer ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-                </button>
-
-                {showExplorer && (
-                  <div className="px-4 pb-4 space-y-3 border-t border-purple-200">
-                    <p className="text-xs text-purple-700 mt-3">
-                      Informe os nomes das tabelas (uma por linha ou separadas por vírgula). O sistema vai executar{' '}
-                      <code className="bg-purple-100 px-1 rounded">EVALUATE TOPN(1, Tabela)</code> para cada uma e extrair as colunas automaticamente.
-                    </p>
-                    <textarea
-                      value={tableInput}
-                      onChange={e => setTableInput(e.target.value)}
-                      className="input resize-none font-mono text-xs"
-                      rows={5}
-                      placeholder={`fBaseGeral\ndCalendário\ndGrupoEmpresa\ndContratados&Desligados\ndDDD_UF\ndFaixaIdade\ndFaixaTempoEmpresa\ndFiltroPeriodo`}
-                    />
-
-                    {exploreResult && !exploreResult.error && (
-                      <div className="text-xs bg-white border border-purple-200 rounded-lg p-3 space-y-1">
-                        <p className="font-semibold text-purple-800 flex items-center gap-1.5">
-                          <CheckCircle2 className="w-3.5 h-3.5" />
-                          {exploreResult.tables_found?.length} tabela(s) detectada(s) — schema preenchido abaixo
+                {detectResult && (
+                  detectResult.ok
+                    ? <div className="text-xs bg-white border border-indigo-200 rounded-lg px-3 py-2 space-y-1">
+                        <p className="flex items-center gap-1.5 text-indigo-800">
+                          <CheckCircle2 className="w-3.5 h-3.5 text-green-600 flex-shrink-0" />
+                          <strong>{detectResult.table_count} tabelas</strong>
+                          {detectResult.measure_count > 0 && <> e <strong>{detectResult.measure_count} medidas</strong></>}
+                          {' '}detectadas — schema preenchido abaixo. Clique em <strong>Atualizar conexão</strong> para salvar.
                         </p>
-                        {Object.keys(exploreResult.errors || {}).length > 0 && (
-                          <p className="text-red-600">
-                            ⚠️ Erros: {Object.keys(exploreResult.errors).join(', ')}
+                        {detectResult.fallback && (
+                          <p className="flex items-center gap-1.5 text-amber-700">
+                            <AlertCircle className="w-3.5 h-3.5 flex-shrink-0" />
+                            Modo básico (sem medidas): Admin API ainda sem permissão. Aguarde a propagação e clique em Detectar novamente.
                           </p>
                         )}
-                        <p className="text-purple-600">Adicione as medidas principais manualmente no campo abaixo, depois clique em <strong>Atualizar conexão</strong>.</p>
                       </div>
-                    )}
-
-                    {exploreResult?.error && (
-                      <p className="text-xs text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
-                        {exploreResult.error}
+                    : <p className="text-xs text-red-700 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
+                        ⚠️ {detectResult.error}
                       </p>
-                    )}
-
-                    <button type="button" onClick={exploreTables} disabled={exploring || !tableInput.trim()}
-                      className="btn-primary flex items-center gap-2 text-sm disabled:opacity-50">
-                      {exploring
-                        ? <><Loader2 className="w-4 h-4 animate-spin" /> Explorando tabelas...</>
-                        : <><Wand2 className="w-4 h-4" /> Detectar colunas</>}
-                    </button>
-                  </div>
                 )}
               </div>
             )}
@@ -328,7 +203,7 @@ export default function AdminPBI() {
               placeholder={`Exemplo:\nTabela: fBaseGeral\n  Colunas: DataAdmissao, Colaborador, Cargo, Salario, GrupoID\n  Medidas: [Total Colaboradores], [Taxa Turnover], [Headcount Ativo]\n\nTabela: dCalendário\n  Colunas: Data, Ano, Mes, Semana, Trimestre`}
             />
             <p className="text-xs text-gray-400 mt-1">
-              Use o detector acima para preencher colunas automaticamente. Adicione as medidas mais importantes manualmente.
+              Use "Detectar tudo" para preencher automaticamente. Você também pode editar o schema manualmente.
             </p>
           </div>
 
@@ -360,66 +235,6 @@ export default function AdminPBI() {
             )}
           </div>
         </form>
-
-        {/* Gerenciador de Medidas */}
-        {existing && (
-          <div className="card mt-4 p-5 space-y-4">
-            <div>
-              <h2 className="text-sm font-semibold text-gray-800">Medidas verificadas</h2>
-              <p className="text-xs text-gray-500 mt-0.5">
-                Digite o nome exato de uma medida do Power BI — o sistema testa via DAX e adiciona ao schema automaticamente.
-              </p>
-            </div>
-
-            {/* Input + botão verificar */}
-            <div className="flex gap-2">
-              <input
-                value={measureInput}
-                onChange={e => setMeasureInput(e.target.value)}
-                onKeyDown={e => e.key === 'Enter' && (e.preventDefault(), verifyMeasure())}
-                className="input flex-1 font-mono text-sm"
-                placeholder="Ex: Total Ligações"
-              />
-              <button type="button" onClick={verifyMeasure} disabled={verifying || !measureInput.trim()}
-                className="btn-primary flex items-center gap-1.5 disabled:opacity-50 whitespace-nowrap">
-                {verifying ? <Loader2 className="w-4 h-4 animate-spin" /> : <Zap className="w-4 h-4" />}
-                {verifying ? 'Testando...' : 'Verificar e adicionar'}
-              </button>
-            </div>
-
-            {/* Resultado da verificação */}
-            {verifyResult && (
-              <p className={`text-xs px-3 py-2 rounded-lg flex items-center gap-1.5 ${
-                verifyResult.exists
-                  ? 'bg-green-50 border border-green-200 text-green-800'
-                  : 'bg-red-50 border border-red-200 text-red-700'
-              }`}>
-                {verifyResult.exists
-                  ? <><CheckCircle2 className="w-3.5 h-3.5 flex-shrink-0" /> <strong>[{verifyResult.measure}]</strong> existe no dataset e foi adicionada ao schema.</>
-                  : <><XCircle className="w-3.5 h-3.5 flex-shrink-0" /> Medida não encontrada: {verifyResult.error}</>}
-              </p>
-            )}
-
-            {/* Lista de medidas no schema */}
-            {measures.length > 0 && (
-              <div>
-                <p className="text-xs text-gray-500 mb-2">{measures.length} medida(s) no schema atual:</p>
-                <div className="flex flex-wrap gap-1.5">
-                  {measures.map(m => (
-                    <span key={m} className="inline-flex items-center gap-1 text-xs bg-blue-50 border border-blue-200 text-blue-800 px-2 py-1 rounded-lg font-mono">
-                      [{m}]
-                      <button type="button" onClick={() => removeMeasure(m)}
-                        className="text-blue-400 hover:text-red-500 ml-0.5">
-                        <XCircle className="w-3 h-3" />
-                      </button>
-                    </span>
-                  ))}
-                </div>
-                <p className="text-xs text-gray-400 mt-2">Clique em ✕ para remover. Clique em <strong>Atualizar conexão</strong> para salvar as alterações.</p>
-              </div>
-            )}
-          </div>
-        )}
 
         {/* Resultado do teste */}
         {testResult && (
