@@ -4,7 +4,7 @@ from openai import OpenAI
 from app.config import settings
 from app.services.storage_service import download_parquet
 
-# Suporte a OpenRouter e OpenAI — configurado via OPENAI_BASE_URL
+# Suporte a OpenRouter e OpenAI
 _client_kwargs = {"api_key": settings.OPENAI_API_KEY}
 if settings.OPENAI_BASE_URL:
     _client_kwargs["base_url"] = settings.OPENAI_BASE_URL
@@ -32,77 +32,71 @@ Você executa consultas DAX para buscar dados e responder perguntas analíticas.
 ## REGRA DE ASPAS — OBRIGATÓRIO:
 
 Qualquer tabela com acento ou caractere especial DEVE ser envolta em aspas simples em TODO contexto DAX:
-- ✅ `'dCalendário'[Date]`
-- ✅ `FILTER(ALL('dCalendário'), 'dCalendário'[Date] = ...)`
-- ✅ `'dHorárioIntervalo'[Intervalo de Hora]`
-- ❌ `dCalendário[Date]` — SEM aspas causa erro de sintaxe
+- Correto: 'dCalendario'[Date]
+- Correto: FILTER(ALL('dCalendario'), 'dCalendario'[Date] = ...)
+- Correto: 'dHorarioIntervalo'[Intervalo de Hora]
+- ERRADO: dCalendario[Date] sem aspas simples causa erro de sintaxe
 
 ## REGRA DE FILTRO POR CONTRATO — OBRIGATÓRIO:
 
-A dimensão **dGrupoEmpresa** identifica o contrato/serviço. Coluna-chave:
-- `secao_resumido` → nome do contrato (ex: "Ligue 180", "Ouvidoria", "Saúde da Mulher")
+A dimensão dGrupoEmpresa identifica o contrato/servico. Coluna-chave:
+- secao_resumido -> nome do contrato (ex: "Ligue 180", "Ouvidoria", "Saude da Mulher")
 
-Sempre que o usuário mencionar um contrato/serviço específico, SEMPRE filtre por `dGrupoEmpresa[secao_resumido]`.
+Sempre que o usuario mencionar um contrato/servico especifico, SEMPRE filtre por dGrupoEmpresa[secao_resumido].
 Sem esse filtro os totais incluem TODOS os contratos — resultado errado.
 
-## Sintaxe DAX correta — siga estritamente:
+## Sintaxe DAX correta:
 
-**Total simples:**
+Total simples:
 EVALUATE ROW("Total", [Medida])
 
-**Total filtrado por contrato:**
+Total filtrado por contrato:
 EVALUATE CALCULATETABLE(
     ROW("Total", [Chamadas Entrantes]),
     dGrupoEmpresa[secao_resumido] = "Ligue 180"
 )
 
-**Total filtrado por data (ontem) + contrato:**
+Total filtrado por data (ontem) + contrato:
 EVALUATE CALCULATETABLE(
     ROW("Total", [Chamadas Entrantes]),
-    'dCalendário'[Date] = TODAY() - 1,
+    'dCalendario'[Date] = TODAY() - 1,
     dGrupoEmpresa[secao_resumido] = "Ligue 180"
 )
 
-**Total filtrado por mês atual:**
+Total filtrado por mes atual + contrato:
 EVALUATE CALCULATETABLE(
     ROW("Total", [Chamadas Atendidas]),
-    MONTH('dCalendário'[Date]) = MONTH(TODAY()),
-    YEAR('dCalendário'[Date]) = YEAR(TODAY()),
+    MONTH('dCalendario'[Date]) = MONTH(TODAY()),
+    YEAR('dCalendario'[Date]) = YEAR(TODAY()),
     dGrupoEmpresa[secao_resumido] = "Ligue 180"
 )
 
-**Tabela agrupada com filtros (use FILTER dentro de SUMMARIZECOLUMNS):**
+Tabela agrupada com filtros de data e contrato:
 EVALUATE SUMMARIZECOLUMNS(
-    'dHorárioIntervalo'[Intervalo de Hora],
-    FILTER(ALL('dCalendário'), 'dCalendário'[Date] = TODAY() - 1),
+    'dHorarioIntervalo'[Intervalo de Hora],
+    FILTER(ALL('dCalendario'), 'dCalendario'[Date] = TODAY() - 1),
     FILTER(ALL(dGrupoEmpresa), dGrupoEmpresa[secao_resumido] = "Ligue 180"),
     "Total", [Chamadas Atendidas]
 )
 
-**NUNCA use sintaxe inválida:**
-- SUMMARIZECOLUMNS(..., Tabela[Coluna] = valor)  ← ERRADO
-- SUMMARIZECOLUMNS(..., Tabela[Coluna] = TODAY())  ← ERRADO
+NUNCA use sintaxe invalida:
+- SUMMARIZECOLUMNS com igualdade direta: Tabela[Coluna] = valor ERRADO
+- Tabelas com acento sem aspas simples: dCalendario sem aspas ERRADO
 
 ## Regras gerais:
-- Prefira CALCULATETABLE + ROW para totais com filtro — mais simples e confiável
+- Prefira CALCULATETABLE + ROW para totais com filtro
 - Se SUMMARIZECOLUMNS falhar, tente CALCULATETABLE(ROW(...), filtros...)
-- Execute quantas queries forem necessárias para responder completamente
+- Execute quantas queries forem necessarias para responder
 
-## Formatação da resposta:
-- Apresente valores em **negrito**
-- Use tabelas markdown para múltiplas colunas
+## Formatacao:
+- Valores em negrito com **
+- Tabelas markdown para multiplas colunas
 - Seja direto e objetivo
 
-## Data atual:
-Hoje é {today} (ano {year}, mês {month}, dia {day}).
-- Ontem = TODAY() - 1 ou DATE({year}, {month}, {day} - 1)
-- Este mês = MONTH(TODAY()) = {month} e YEAR(TODAY()) = {year}
-- Use sempre o ano correto ({year}) ao construir datas fixas com DATE()
-
+## Data atual: DATA_HOJE
 ## Schema do dataset:
-{schema}"""
+SCHEMA_DATASET"""
 
-# Definição da ferramenta para tool calling
 _PBI_TOOLS = [
     {
         "type": "function",
@@ -114,7 +108,7 @@ _PBI_TOOLS = [
                 "properties": {
                     "dax_query": {
                         "type": "string",
-                        "description": "Consulta DAX válida. Deve começar com EVALUATE. Ex: EVALUATE SUMMARIZECOLUMNS(Vendas[Produto], \"Total\", SUM(Vendas[Valor]))"
+                        "description": "Consulta DAX valida. Deve comecar com EVALUATE."
                     }
                 },
                 "required": ["dax_query"]
@@ -125,27 +119,23 @@ _PBI_TOOLS = [
 
 
 def read_parquet_summary(parquet_path: str, max_rows: int = 500) -> str:
-    """Baixa o Parquet do Supabase Storage e retorna um resumo estruturado para o LLM."""
     try:
         buf = download_parquet(parquet_path)
         df = pd.read_parquet(buf)
-
         summary_parts = [
             "### Dados do Dashboard",
             f"**Colunas:** {', '.join(df.columns.tolist())}",
             f"**Total de registros:** {len(df):,}",
             "",
-            "**Estatísticas numéricas:**",
+            "**Estatisticas numericas:**",
             df.describe().to_string(),
             "",
             f"**Amostra dos dados (primeiras {min(max_rows, len(df))} linhas):**",
             df.head(max_rows).to_string(index=False)
         ]
-
         for col in df.columns:
             if pd.api.types.is_datetime64_any_dtype(df[col]):
-                summary_parts.append(f"**Período ({col}):** {df[col].min()} a {df[col].max()}")
-
+                summary_parts.append(f"**Periodo ({col}):** {df[col].min()} a {df[col].max()}")
         return "\n".join(summary_parts)
     except Exception as e:
         return f"Erro ao ler arquivo de dados: {str(e)}"
@@ -154,36 +144,29 @@ def read_parquet_summary(parquet_path: str, max_rows: int = 500) -> str:
 def chat_with_ai(question: str, dashboard_name: str = None,
                  parquet_path: str = None, dax_context: str = None,
                  conversation_history: list = None) -> str:
-    """Chat padrão sem Power BI (usa Parquet/DAX context estático)."""
     messages = [{"role": "system", "content": SYSTEM_PROMPT}]
-
     context_parts = []
     if dashboard_name:
         context_parts.append(f"**Dashboard:** {dashboard_name}")
     if dax_context:
-        context_parts.append(f"**Regras de negócio e métricas DAX:**\n{dax_context}")
+        context_parts.append(f"**Regras de negocio e metricas DAX:**\n{dax_context}")
     if parquet_path:
         context_parts.append(read_parquet_summary(parquet_path))
-
     if context_parts:
         messages.append({
             "role": "system",
-            "content": "## Contexto dos dados disponíveis:\n\n" + "\n\n".join(context_parts)
+            "content": "## Contexto dos dados disponiveis:\n\n" + "\n\n".join(context_parts)
         })
-
     if conversation_history:
         for msg in conversation_history[-10:]:
             messages.append(msg)
-
     messages.append({"role": "user", "content": question})
-
     response = client.chat.completions.create(
         model=settings.OPENAI_MODEL,
         messages=messages,
         temperature=0.3,
         max_tokens=2000
     )
-
     return response.choices[0].message.content
 
 
@@ -198,28 +181,71 @@ def chat_with_powerbi(
     conversation_history: list = None,
     max_tool_iterations: int = 4,
 ) -> dict:
-    """
-    Chat com suporte a tool calling no Power BI.
-
-    Retorna:
-        {
-            "answer": str,          # resposta final da IA
-            "pbi_queries": list[str] # queries DAX executadas
-        }
-    """
     from app.services.powerbi_service import (
         get_pbi_token, execute_dax_query, format_rows_for_llm
     )
 
-    # 1. Token + schema
     token = get_pbi_token(tenant_id, client_id, client_secret)
 
     from datetime import date
     today = date.today()
-    schema = schema_context or "Schema não fornecido — explore as tabelas com DAX (ex: EVALUATE TOPN(5, NomeDaTabela)) para descobrir os dados disponíveis."
+    schema = schema_context or "Schema nao fornecido."
 
-    # Usa replace em vez de .format() para evitar KeyError quando o schema
-    # contém chaves { } em fórmulas DAX
-    system_content = (
-        PBI_SYSTEM_PROMPT
-        .replace("{today}
+    date_info = (
+        "Hoje e " + today.isoformat() +
+        " (ano " + str(today.year) +
+        ", mes " + str(today.month) +
+        ", dia " + str(today.day) + ")." +
+        " Ontem = TODAY() - 1." +
+        " Este mes = MONTH(TODAY()) = " + str(today.month) +
+        " e YEAR(TODAY()) = " + str(today.year) + "."
+    )
+
+    system_content = PBI_SYSTEM_PROMPT.replace("DATA_HOJE", date_info).replace("SCHEMA_DATASET", schema)
+
+    messages = [{"role": "system", "content": system_content}]
+    if conversation_history:
+        for msg in conversation_history[-10:]:
+            messages.append({"role": msg["role"], "content": msg["content"]})
+    messages.append({"role": "user", "content": question})
+
+    pbi_queries: list[str] = []
+
+    for _ in range(max_tool_iterations):
+        response = client.chat.completions.create(
+            model=settings.OPENAI_MODEL,
+            messages=messages,
+            tools=_PBI_TOOLS,
+            tool_choice="auto",
+            temperature=0.1,
+            max_tokens=3000,
+        )
+        msg = response.choices[0].message
+        if not msg.tool_calls:
+            return {"answer": msg.content or "", "pbi_queries": pbi_queries}
+        messages.append(msg)
+        for tool_call in msg.tool_calls:
+            try:
+                args = json.loads(tool_call.function.arguments)
+                dax = args.get("dax_query", "")
+            except Exception:
+                dax = ""
+            pbi_queries.append(dax)
+            result = execute_dax_query(dataset_id, dax, token, workspace_id)
+            formatted = format_rows_for_llm(result)
+            messages.append({
+                "role": "tool",
+                "tool_call_id": tool_call.id,
+                "content": formatted,
+            })
+
+    response = client.chat.completions.create(
+        model=settings.OPENAI_MODEL,
+        messages=messages,
+        temperature=0.1,
+        max_tokens=3000,
+    )
+    return {
+        "answer": response.choices[0].message.content or "",
+        "pbi_queries": pbi_queries,
+    }
