@@ -11,9 +11,12 @@ import httpx
 import json
 from typing import Optional
 
-PBI_TOKEN_URL = "https://login.microsoftonline.com/{tenant_id}/oauth2/v2.0/token"
-PBI_TABLES_URL = "https://api.powerbi.com/v1.0/myorg/datasets/{dataset_id}/tables"
-PBI_QUERY_URL  = "https://api.powerbi.com/v1.0/myorg/datasets/{dataset_id}/executeQueries"
+PBI_TOKEN_URL  = "https://login.microsoftonline.com/{tenant_id}/oauth2/v2.0/token"
+# Suporta dataset global e workspace-scoped (Fabric / OneLake)
+PBI_TABLES_URL = "https://api.powerbi.com/v1.0/myorg/groups/{workspace_id}/datasets/{dataset_id}/tables"
+PBI_TABLES_URL_GLOBAL = "https://api.powerbi.com/v1.0/myorg/datasets/{dataset_id}/tables"
+PBI_QUERY_URL  = "https://api.powerbi.com/v1.0/myorg/groups/{workspace_id}/datasets/{dataset_id}/executeQueries"
+PBI_QUERY_URL_GLOBAL = "https://api.powerbi.com/v1.0/myorg/datasets/{dataset_id}/executeQueries"
 
 _TIMEOUT = 45  # segundos
 
@@ -35,14 +38,23 @@ def get_pbi_token(tenant_id: str, client_id: str, client_secret: str) -> str:
         return data["access_token"]
 
 
-def get_dataset_schema(dataset_id: str, token: str) -> str:
+def get_dataset_schema(dataset_id: str, token: str, workspace_id: Optional[str] = None) -> str:
     """
     Retorna uma representação textual do schema (tabelas + colunas + medidas)
     adequada para ser inserida no system prompt da IA.
+    Suporta datasets globais e workspace-scoped (Fabric/OneLake).
     """
-    url = PBI_TABLES_URL.format(dataset_id=dataset_id)
+    if workspace_id:
+        url = PBI_TABLES_URL.format(workspace_id=workspace_id, dataset_id=dataset_id)
+    else:
+        url = PBI_TABLES_URL_GLOBAL.format(dataset_id=dataset_id)
+
     with httpx.Client(timeout=_TIMEOUT) as client:
         resp = client.get(url, headers={"Authorization": f"Bearer {token}"})
+        # Fallback: se workspace-scoped falhar, tenta global
+        if resp.status_code >= 400 and workspace_id:
+            url = PBI_TABLES_URL_GLOBAL.format(dataset_id=dataset_id)
+            resp = client.get(url, headers={"Authorization": f"Bearer {token}"})
         resp.raise_for_status()
         tables = resp.json().get("value", [])
 
@@ -69,12 +81,15 @@ def get_dataset_schema(dataset_id: str, token: str) -> str:
     return "\n".join(lines)
 
 
-def execute_dax_query(dataset_id: str, dax_query: str, token: str) -> dict:
+def execute_dax_query(dataset_id: str, dax_query: str, token: str, workspace_id: Optional[str] = None) -> dict:
     """
     Executa uma query DAX e retorna:
       { "rows": [...], "count": int, "dax_query": str, "error": str|None }
     """
-    url = PBI_QUERY_URL.format(dataset_id=dataset_id)
+    if workspace_id:
+        url = PBI_QUERY_URL.format(workspace_id=workspace_id, dataset_id=dataset_id)
+    else:
+        url = PBI_QUERY_URL_GLOBAL.format(dataset_id=dataset_id)
     payload = {
         "queries": [{"query": dax_query}],
         "serializerSettings": {"includeNulls": True},

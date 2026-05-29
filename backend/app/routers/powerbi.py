@@ -16,18 +16,20 @@ router = APIRouter(prefix="/api/powerbi", tags=["Power BI"])
 class PBIConnectionIn(BaseModel):
     name:          str = "Conexão Power BI"
     dataset_id:    str
+    workspace_id:  Optional[str] = None
     tenant_id:     str
     client_id:     str
     client_secret: str
     is_active:     bool = True
 
 class PBIConnectionOut(BaseModel):
-    id:         int
-    name:       str
-    dataset_id: str
-    tenant_id:  str
-    client_id:  str
-    is_active:  bool
+    id:           int
+    name:         str
+    dataset_id:   str
+    workspace_id: Optional[str] = None
+    tenant_id:    str
+    client_id:    str
+    is_active:    bool
     # client_secret NÃO é retornado por segurança
 
     class Config:
@@ -94,7 +96,7 @@ def test_connection(db: Session = Depends(get_db),
 
     try:
         token  = get_pbi_token(conn.tenant_id, conn.client_id, conn.client_secret)
-        schema = get_dataset_schema(conn.dataset_id, token)
+        schema = get_dataset_schema(conn.dataset_id, token, conn.workspace_id)
         return TestResult(ok=True, schema=schema)
     except Exception as e:
         return TestResult(ok=False, error=str(e))

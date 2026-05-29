@@ -136,6 +136,7 @@ def chat_with_powerbi(
     tenant_id: str,
     client_id: str,
     client_secret: str,
+    workspace_id: str = None,
     conversation_history: list = None,
     max_tool_iterations: int = 4,
 ) -> dict:
@@ -154,7 +155,7 @@ def chat_with_powerbi(
 
     # 1. Token + schema
     token = get_pbi_token(tenant_id, client_id, client_secret)
-    schema = get_dataset_schema(dataset_id, token)
+    schema = get_dataset_schema(dataset_id, token, workspace_id)
 
     system_content = PBI_SYSTEM_PROMPT.format(schema=schema)
 
@@ -198,7 +199,7 @@ def chat_with_powerbi(
             pbi_queries.append(dax)
 
             # Executa o DAX
-            result = execute_dax_query(dataset_id, dax, token)
+            result = execute_dax_query(dataset_id, dax, token, workspace_id)
             formatted = format_rows_for_llm(result)
 
             messages.append({

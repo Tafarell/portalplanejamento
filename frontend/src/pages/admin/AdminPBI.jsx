@@ -4,7 +4,7 @@ import Layout from '../../components/Layout'
 import ConfirmDialog from '../../components/ConfirmDialog'
 import { Zap, CheckCircle2, XCircle, Loader2, Eye, EyeOff, Trash2, RefreshCw, Database } from 'lucide-react'
 
-const EMPTY = { name: 'Conexão Power BI', dataset_id: '', tenant_id: '', client_id: '', client_secret: '', is_active: true }
+const EMPTY = { name: 'Conexão Power BI', dataset_id: '', workspace_id: '', tenant_id: '', client_id: '', client_secret: '', is_active: true }
 
 export default function AdminPBI() {
   const [form, setForm]         = useState(EMPTY)
@@ -123,6 +123,7 @@ export default function AdminPBI() {
         <form onSubmit={save} className="card p-6 space-y-4">
           {field('name', 'Nome da conexão', 'Ex: Dataset Produção')}
           {field('dataset_id', 'Dataset ID', 'xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx')}
+          {field('workspace_id', 'Workspace ID (Fabric/OneLake — opcional)', 'xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx')}
           {field('tenant_id', 'Tenant ID (Directory ID)', 'xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx')}
           {field('client_id', 'Client ID (Application ID)', 'xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx')}
           {field('client_secret', existing ? 'Client Secret (deixe em branco para manter)' : 'Client Secret', '••••••••••••••••', 'secret')}

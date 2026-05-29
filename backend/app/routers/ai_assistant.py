@@ -50,6 +50,7 @@ def chat(request: ChatRequest, db: Session = Depends(get_db),
             result = chat_with_powerbi(
                 question=request.question,
                 dataset_id=pbi_conn.dataset_id,
+                workspace_id=pbi_conn.workspace_id,
                 tenant_id=pbi_conn.tenant_id,
                 client_id=pbi_conn.client_id,
                 client_secret=pbi_conn.client_secret,
