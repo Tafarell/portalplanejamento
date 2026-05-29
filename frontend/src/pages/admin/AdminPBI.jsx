@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import Layout from '../../components/Layout'
 import api from '../../api/axios'
 import { Plus, Trash2, Edit2, CheckCircle, XCircle, ChevronDown, ChevronUp, Zap, Database, RefreshCw } from 'lucide-react'
 
@@ -14,6 +15,7 @@ function Step({ n, text }) {
       <span className="w-6 h-6 rounded-full bg-blue-600 text-white text-xs flex items-center justify-center flex-shrink-0 mt-0.5 font-bold">{n}</span>
       <p className="text-sm text-gray-700 leading-relaxed" dangerouslySetInnerHTML={{ __html: text }} />
     </div>
+    </Layout>
   )
 }
 
@@ -95,6 +97,7 @@ function ConnectionCard({ conn, onEdit, onDelete, onTest, onDiscover }) {
         </div>
       )}
     </div>
+    </Layout>
   )
 }
 
@@ -178,6 +181,7 @@ function ConnectionForm({ initial, onSave, onCancel }) {
         </button>
       </div>
     </div>
+    </Layout>
   )
 }
 
@@ -213,6 +217,7 @@ export default function AdminPBI() {
   const activeCount = connections.filter(c => c.is_active).length
 
   return (
+    <Layout>
     <div className="max-w-4xl mx-auto p-6 space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
@@ -282,5 +287,6 @@ export default function AdminPBI() {
         </div>
       )}
     </div>
+    </Layout>
   )
 }
