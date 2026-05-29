@@ -130,7 +130,7 @@ export default function AdminCategories() {
                 </div>
                 <div>
                   <p className="font-semibold text-gray-900 text-sm">{editId ? 'Editar categoria' : 'Nova categoria'}</p>
-                  <p className="text-xs text-gray-400">Slug gerado automaticamente pelo nome</p>
+                  <p className="text-xs text-gray-400"></p>
                 </div>
               </div>
               {editId && (
@@ -148,7 +148,7 @@ export default function AdminCategories() {
                   onChange={e => updateName(e.target.value)}
                   required
                   className="input"
-                  placeholder="Ex: Financeiro"
+                  placeholder=""
                   autoFocus
                 />
               </div>
