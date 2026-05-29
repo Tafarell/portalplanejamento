@@ -86,10 +86,33 @@ NUNCA use sintaxe invalida:
 - SUMMARIZECOLUMNS com igualdade direta: Tabela[Coluna] = valor ERRADO
 - Tabelas com acento sem aspas simples: dCalendario sem aspas ERRADO
 
+## Comparacoes de periodo — sintaxe correta:
+
+Esta semana vs semana anterior:
+EVALUATE ROW(
+    "Esta Semana", CALCULATE([Chamadas Atendidas], WEEKNUM('dCalendario'[Date]) = WEEKNUM(TODAY()), YEAR('dCalendario'[Date]) = YEAR(TODAY())),
+    "Semana Anterior", CALCULATE([Chamadas Atendidas], WEEKNUM('dCalendario'[Date]) = WEEKNUM(TODAY()) - 1, YEAR('dCalendario'[Date]) = YEAR(TODAY()))
+)
+
+Este mes vs mes anterior:
+EVALUATE ROW(
+    "Este Mes", CALCULATE([Chamadas Atendidas], MONTH('dCalendario'[Date]) = MONTH(TODAY()), YEAR('dCalendario'[Date]) = YEAR(TODAY())),
+    "Mes Anterior", CALCULATE([Chamadas Atendidas], MONTH('dCalendario'[Date]) = MONTH(TODAY()) - 1, YEAR('dCalendario'[Date]) = YEAR(TODAY()))
+)
+
+Ontem vs anteontem:
+EVALUATE ROW(
+    "Ontem", CALCULATE([Chamadas Atendidas], 'dCalendario'[Date] = TODAY() - 1),
+    "Anteontem", CALCULATE([Chamadas Atendidas], 'dCalendario'[Date] = TODAY() - 2)
+)
+
+NUNCA use colunas que nao existem no schema como [Semana do Ano], [Mes], [Ano] — use funcoes DAX na coluna Date.
+
 ## Regras gerais:
 - Prefira CALCULATETABLE + ROW para totais com filtro
 - Se SUMMARIZECOLUMNS falhar, tente CALCULATETABLE(ROW(...), filtros...)
 - Execute quantas queries forem necessarias para responder
+- Se uma query falhar 2 vezes, simplifique e tente abordagem diferente
 
 ## Postura analitica — OBRIGATORIO:
 
