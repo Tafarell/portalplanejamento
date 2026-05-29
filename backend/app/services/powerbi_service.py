@@ -168,6 +168,166 @@ def discover_schema(dataset_id: str, token: str, workspace_id: Optional[str] = N
     return {"schema_text": "", "tables": [], "error": "INFO functions indisponíveis. Use explore_tables_columns()."}
 
 
+# ── Fabric API — definição completa do modelo semântico ───────────────────────
+
+FABRIC_BASE_URL = "https://api.fabric.microsoft.com/v1"
+
+
+def _get_token(tenant_id: str, client_id: str, client_secret: str, scope: str) -> str:
+    url = PBI_TOKEN_URL.format(tenant_id=tenant_id)
+    with httpx.Client(timeout=_TIMEOUT) as c:
+        resp = c.post(url, data={
+            "grant_type":    "client_credentials",
+            "client_id":     client_id,
+            "client_secret": client_secret,
+            "scope":         scope,
+        })
+        resp.raise_for_status()
+        return resp.json()["access_token"]
+
+
+def _parse_bim(content: str) -> dict:
+    """Parseia model.bim (JSON TMSL) e extrai tabelas, colunas e medidas."""
+    import json as _json
+    try:
+        bim = _json.loads(content)
+    except Exception as e:
+        return {"schema_text": "", "error": f"Erro ao parsear model.bim: {e}"}
+
+    tables = bim.get("model", {}).get("tables", [])
+    lines: list[str] = []
+    SKIP = {"DateTableTemplate", "LocalDateTable"}
+
+    for tbl in tables:
+        name: str = tbl.get("name", "")
+        if tbl.get("isHidden") or any(name.startswith(s) for s in SKIP):
+            continue
+
+        cols = [
+            c["name"] for c in tbl.get("columns", [])
+            if not c.get("isHidden") and c.get("type") != "calculated"
+        ]
+        measures = [m["name"] for m in tbl.get("measures", [])]
+
+        lines.append(f"Tabela: {name}")
+        if cols:
+            lines.append(f"  Colunas: {', '.join(cols)}")
+        if measures:
+            lines.append(f"  Medidas: {', '.join(f'[{m}]' for m in measures)}")
+        lines.append("")
+
+    return {"schema_text": "\n".join(lines).strip(), "error": None}
+
+
+def _parse_tmdl(tmdl_parts: dict[str, str]) -> dict:
+    """Parseia arquivos TMDL (um por tabela) e extrai colunas e medidas."""
+    import re
+    lines: list[str] = []
+    SKIP = {"DateTableTemplate", "LocalDateTable"}
+
+    for table_name in sorted(tmdl_parts):
+        if any(table_name.startswith(s) for s in SKIP):
+            continue
+        content = tmdl_parts[table_name]
+
+        cols    = re.findall(r'^\s+column\s+(.+)$', content, re.MULTILINE)
+        cols    = [c.strip().strip("'\"") for c in cols]
+        measures = re.findall(r'^\s+measure\s+(.+?)\s*=', content, re.MULTILINE)
+        measures = [m.strip().strip("'\"") for m in measures]
+
+        lines.append(f"Tabela: {table_name}")
+        if cols:
+            lines.append(f"  Colunas: {', '.join(cols)}")
+        if measures:
+            lines.append(f"  Medidas: {', '.join(f'[{m}]' for m in measures)}")
+        lines.append("")
+
+    return {"schema_text": "\n".join(lines).strip(), "error": None}
+
+
+def discover_schema_fabric(
+    workspace_id: str,
+    dataset_id: str,
+    tenant_id: str,
+    client_id: str,
+    client_secret: str,
+) -> dict:
+    """
+    Busca a definição completa do Semantic Model via Fabric REST API.
+    Tenta os scopes do Fabric e do Power BI; parseia model.bim ou TMDL.
+
+    Retorna { "schema_text": str, "error": str|None }
+    """
+    import base64, time
+
+    # 1. Obter token — tenta Fabric scope primeiro
+    token = None
+    last_err = ""
+    for scope in [
+        "https://api.fabric.microsoft.com/.default",
+        "https://analysis.windows.net/powerbi/api/.default",
+    ]:
+        try:
+            token = _get_token(tenant_id, client_id, client_secret, scope)
+            break
+        except Exception as e:
+            last_err = str(e)
+    if not token:
+        return {"schema_text": "", "error": f"Falha ao obter token: {last_err}"}
+
+    # 2. Chamar endpoint de definição
+    url = f"{FABRIC_BASE_URL}/workspaces/{workspace_id}/semanticmodels/{dataset_id}/definition"
+    headers = {"Authorization": f"Bearer {token}"}
+
+    with httpx.Client(timeout=120) as c:
+        resp = c.get(url, headers=headers)
+
+    # 3. Tratar 202 (operação assíncrona)
+    if resp.status_code == 202:
+        op_url = resp.headers.get("Location") or resp.headers.get("location")
+        if not op_url:
+            return {"schema_text": "", "error": "202 sem Location header."}
+        for _ in range(30):
+            time.sleep(2)
+            with httpx.Client(timeout=30) as c:
+                poll = c.get(op_url, headers=headers)
+            if poll.status_code == 200:
+                resp = poll
+                break
+            if poll.status_code != 202:
+                return {"schema_text": "", "error": f"Polling falhou: {poll.status_code} {poll.text[:300]}"}
+        else:
+            return {"schema_text": "", "error": "Timeout aguardando definição do modelo (60s)."}
+
+    if resp.status_code != 200:
+        return {"schema_text": "", "error": f"HTTP {resp.status_code}: {resp.text[:600]}"}
+
+    # 4. Parsear partes da resposta
+    parts = resp.json().get("definition", {}).get("parts", [])
+    tmdl_tables: dict[str, str] = {}
+
+    for part in parts:
+        path: str = part.get("path", "")
+        try:
+            content = base64.b64decode(part.get("payload", "")).decode("utf-8")
+        except Exception:
+            continue
+
+        # model.bim é o formato JSON — mais fácil de parsear
+        if path.endswith("model.bim"):
+            return _parse_bim(content)
+
+        # Arquivos TMDL por tabela: definition/tables/NomeDaTabela.tmdl
+        if "/tables/" in path and path.endswith(".tmdl"):
+            tbl_name = path.split("/tables/")[-1].removesuffix(".tmdl")
+            tmdl_tables[tbl_name] = content
+
+    if tmdl_tables:
+        return _parse_tmdl(tmdl_tables)
+
+    return {"schema_text": "", "error": "Nenhum arquivo de definição encontrado na resposta."}
+
+
 def format_rows_for_llm(result: dict, max_rows: int = 200) -> str:
     """Converte o resultado de execute_dax_query em texto markdown para o LLM."""
     if result.get("error"):

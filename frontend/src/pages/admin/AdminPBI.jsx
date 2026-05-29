@@ -16,7 +16,11 @@ export default function AdminPBI() {
   const [confirmDel, setConfirmDel] = useState(false)
   const [saved, setSaved]       = useState(false)
 
-  // Exploração de tabelas
+  // Fabric API — schema completo automático
+  const [fabricLoading, setFabricLoading] = useState(false)
+  const [fabricResult, setFabricResult]   = useState(null)
+
+  // Exploração de tabelas (fallback manual)
   const [showExplorer, setShowExplorer] = useState(false)
   const [tableInput, setTableInput]     = useState('')
   const [exploring, setExploring]       = useState(false)
@@ -58,6 +62,18 @@ export default function AdminPBI() {
     } catch (e) {
       setTestResult({ ok: false, error: e?.response?.data?.detail || 'Erro desconhecido' })
     } finally { setTesting(false) }
+  }
+
+  const discoverFabric = async () => {
+    setFabricLoading(true)
+    setFabricResult(null)
+    try {
+      const { data } = await api.post('/powerbi/discover-schema-fabric')
+      setForm(f => ({ ...f, schema_context: data.schema_text }))
+      setFabricResult({ ok: true, table_count: data.table_count, measure_count: data.measure_count })
+    } catch (e) {
+      setFabricResult({ ok: false, error: e?.response?.data?.detail || 'Erro ao acessar Fabric API' })
+    } finally { setFabricLoading(false) }
   }
 
   const exploreTables = async () => {
@@ -161,7 +177,40 @@ export default function AdminPBI() {
               <span className="text-gray-400 font-normal">(tabelas, colunas e medidas para a IA)</span>
             </label>
 
-            {/* Explorer de tabelas */}
+            {/* Fabric API — schema completo automático */}
+            {existing && (
+              <div className="mb-3 rounded-xl border border-indigo-200 bg-indigo-50/40 p-4 space-y-3">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="text-sm font-semibold text-indigo-800 flex items-center gap-1.5">
+                      <Wand2 className="w-4 h-4" /> Detecção completa via Fabric API
+                    </p>
+                    <p className="text-xs text-indigo-600 mt-0.5">
+                      Busca tabelas, colunas <strong>e todas as medidas</strong> diretamente da definição do modelo semântico.
+                    </p>
+                  </div>
+                  <button type="button" onClick={discoverFabric} disabled={fabricLoading}
+                    className="flex-shrink-0 flex items-center gap-1.5 text-xs font-medium bg-indigo-600 text-white px-3 py-2 rounded-lg hover:bg-indigo-700 transition-colors disabled:opacity-50">
+                    {fabricLoading
+                      ? <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Buscando...</>
+                      : <><Wand2 className="w-3.5 h-3.5" /> Detectar tudo</>}
+                  </button>
+                </div>
+
+                {fabricResult && (
+                  fabricResult.ok
+                    ? <p className="text-xs text-indigo-800 bg-white border border-indigo-200 rounded-lg px-3 py-2 flex items-center gap-1.5">
+                        <CheckCircle2 className="w-3.5 h-3.5 text-green-600 flex-shrink-0" />
+                        <strong>{fabricResult.table_count} tabelas</strong> e <strong>{fabricResult.measure_count} medidas</strong> detectadas — schema preenchido abaixo. Clique em <strong>Atualizar conexão</strong> para salvar.
+                      </p>
+                    : <p className="text-xs text-red-700 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
+                        ⚠️ {fabricResult.error}
+                      </p>
+                )}
+              </div>
+            )}
+
+            {/* Explorer de tabelas (fallback manual) */}
             {existing && (
               <div className="mb-3 rounded-xl border border-purple-200 bg-purple-50/40 overflow-hidden">
                 <button type="button"
@@ -169,7 +218,7 @@ export default function AdminPBI() {
                   className="w-full flex items-center justify-between px-4 py-2.5 text-sm font-medium text-purple-800 hover:bg-purple-100/50 transition-colors">
                   <span className="flex items-center gap-2">
                     <Wand2 className="w-4 h-4" />
-                    Auto-detectar colunas por tabela
+                    Detectar colunas por tabela (fallback)
                   </span>
                   {showExplorer ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
                 </button>

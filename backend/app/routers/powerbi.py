@@ -6,8 +6,10 @@ from app.database import get_db
 from app.models.pbi_connection import PBIConnection
 from app.models.user import User, UserRole
 from app.utils.security import get_current_user
-from typing import List
-from app.services.powerbi_service import get_pbi_token, test_connection as pbi_test_connection, execute_dax_query, explore_tables_columns
+from app.services.powerbi_service import (
+    get_pbi_token, test_connection as pbi_test_connection,
+    execute_dax_query, explore_tables_columns, discover_schema_fabric,
+)
 
 router = APIRouter(prefix="/api/powerbi", tags=["Power BI"])
 
@@ -164,4 +166,51 @@ def explore_tables_endpoint(data: ExploreTablesIn,
         "schema_text": result["schema_text"],
         "tables_found": result["tables_found"],
         "errors": result["errors"],
+    }
+
+
+@router.post("/discover-schema-fabric")
+def discover_schema_fabric_endpoint(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Busca a definição completa do Semantic Model via Fabric REST API.
+    Retorna tabelas, colunas E medidas. Salva automaticamente. Apenas admin.
+    """
+    _require_admin(current_user)
+
+    conn = db.query(PBIConnection).filter(PBIConnection.is_active == True).first()
+    if not conn:
+        raise HTTPException(status_code=404, detail="Nenhuma conexão configurada.")
+    if not conn.workspace_id:
+        raise HTTPException(status_code=422, detail="Workspace ID é obrigatório para a Fabric API.")
+
+    try:
+        result = discover_schema_fabric(
+            workspace_id=conn.workspace_id,
+            dataset_id=conn.dataset_id,
+            tenant_id=conn.tenant_id,
+            client_id=conn.client_id,
+            client_secret=conn.client_secret,
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+    if result.get("error"):
+        raise HTTPException(status_code=422, detail=result["error"])
+
+    conn.schema_context = result["schema_text"]
+    db.commit()
+
+    # Conta tabelas e medidas no texto gerado
+    lines = result["schema_text"].splitlines()
+    table_count   = sum(1 for l in lines if l.startswith("Tabela:"))
+    measure_count = sum(l.count("[") for l in lines if "Medidas:" in l)
+
+    return {
+        "ok": True,
+        "schema_text": result["schema_text"],
+        "table_count": table_count,
+        "measure_count": measure_count,
     }
