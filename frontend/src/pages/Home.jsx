@@ -55,8 +55,8 @@ export default function Home() {
     <Layout>
       <div className="h-full flex flex-col">
         {/* Header */}
-        <div className="bg-white border-b border-gray-200 px-6 py-5">
-          <div className="max-w-7xl mx-auto">
+        <div className="bg-white border-b border-gray-200 px-4 py-4">
+          <div className="max-w-full">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
               <div>
                 <h1 className="text-xl font-bold text-gray-900">
@@ -104,8 +104,8 @@ export default function Home() {
         </div>
 
         {/* Content */}
-        <div className="flex-1 overflow-y-auto px-6 py-6">
-          <div className="max-w-7xl mx-auto">
+        <div className="flex-1 overflow-y-auto px-4 py-4">
+          <div className="max-w-full">
             {loading ? (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
                 {[...Array(8)].map((_, i) => (
