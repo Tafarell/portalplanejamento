@@ -75,7 +75,7 @@ def list_dashboards(
         q = q.filter(or_(*conditions))
 
     if category:
-        q = q.filter(Dashboard.category == category)
+        q = q.filter(Dashboard.category == category.lower())
     if search:
         q = q.filter(Dashboard.name.ilike(f"%{search}%"))
 

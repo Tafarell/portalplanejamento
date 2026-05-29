@@ -43,6 +43,7 @@ def _run_migrations():
         "ALTER TABLE permissions ALTER COLUMN dashboard_id DROP NOT NULL",
         # Converte category de ENUM para VARCHAR para suportar categorias dinâmicas
         "ALTER TABLE dashboards ALTER COLUMN category TYPE VARCHAR(50) USING category::VARCHAR",
+        "UPDATE dashboards SET category = LOWER(category) WHERE category IS NOT NULL AND category <> LOWER(category)",
     ]
     with engine.connect() as conn:
         for sql in migrations:

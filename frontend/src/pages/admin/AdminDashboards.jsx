@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react'
 import api from '../../api/axios'
 import Layout from '../../components/Layout'
-import { Plus, Pencil, Trash2, ToggleLeft, ToggleRight, Search, X, Image, BarChart3, Settings, ChevronRight } from 'lucide-react'
+import { Plus, Pencil, Trash2, ToggleLeft, ToggleRight, Search, X, Image, BarChart3, Settings, LayoutDashboard } from 'lucide-react'
+import Modal, { ModalFooter } from '../../components/Modal'
 
 const EMPTY = {
-  name: '', description: '', category: 'bi', embed_url: '',
+  name: '', description: '', category: '', embed_url: '',
   tags: '', is_active: true, is_public: false,
   contrato_id: '', dax_context: '',
   _grupo_id: ''   // campo auxiliar, não vai pro backend
@@ -45,12 +46,15 @@ export default function AdminDashboards() {
   }
   useEffect(() => { fetchAll() }, [])
 
-  const openCreate = () => { setForm(EMPTY); setEditId(null); setModal(true) }
+  const getDefaultCategory = () => categories[0]?.slug || 'bi'
+  const normalizeCategory = value => value?.toLowerCase() || getDefaultCategory()
+
+  const openCreate = () => { setForm({ ...EMPTY, category: getDefaultCategory() }); setEditId(null); setModal(true) }
   const openEdit = d => {
     // descobrir grupo do contrato selecionado
     const contrato = contratos.find(c => c.id === d.contrato_id)
     setForm({
-      name: d.name, description: d.description || '', category: d.category,
+      name: d.name, description: d.description || '', category: normalizeCategory(d.category),
       embed_url: d.embed_url, tags: d.tags || '', is_active: d.is_active,
       is_public: d.is_public, contrato_id: d.contrato_id || '',
       dax_context: d.dax_context || '',
@@ -63,7 +67,11 @@ export default function AdminDashboards() {
     e.preventDefault(); setLoading(true)
     try {
       const { _grupo_id, ...payload } = form
-      const finalPayload = { ...payload, contrato_id: payload.contrato_id ? Number(payload.contrato_id) : null }
+      const finalPayload = {
+        ...payload,
+        category: normalizeCategory(payload.category),
+        contrato_id: payload.contrato_id ? Number(payload.contrato_id) : null
+      }
       if (editId) await api.put(`/dashboards/${editId}`, finalPayload)
       else await api.post('/dashboards', finalPayload)
       setModal(false); fetchAll()
@@ -96,13 +104,15 @@ export default function AdminDashboards() {
   )
 
   const getCatLabel = (slug) => {
-    const cat = categories.find(c => c.slug === slug)
-    return cat ? cat.name : slug
+    const normalizedSlug = slug?.toLowerCase()
+    const cat = categories.find(c => c.slug === normalizedSlug)
+    return cat ? cat.name : normalizedSlug || 'Sem categoria'
   }
 
   const getCatColor = (slug) => {
+    const normalizedSlug = slug?.toLowerCase()
     const colors = { bi: 'bg-blue-100 text-blue-700', app: 'bg-purple-100 text-purple-700', report: 'bg-green-100 text-green-700' }
-    return colors[slug] || 'bg-gray-100 text-gray-700'
+    return colors[normalizedSlug] || 'bg-gray-100 text-gray-700'
   }
 
   // Category management
@@ -272,78 +282,76 @@ export default function AdminDashboards() {
       </div>
 
       {/* Dashboard Modal */}
-      {modal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
-          <div className="bg-white rounded-2xl w-full max-w-2xl shadow-2xl max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
-              <h2 className="font-semibold text-lg">{editId ? 'Editar' : 'Novo'} Workspace</h2>
-              <button onClick={() => setModal(false)} className="p-1 text-gray-400 hover:text-gray-700"><X className="w-5 h-5" /></button>
+      <Modal
+        open={modal}
+        onClose={() => setModal(false)}
+        title={editId ? 'Editar Workspace' : 'Novo Workspace'}
+        subtitle="Preencha os dados para cadastrar o painel"
+        icon={<LayoutDashboard className="w-4 h-4 text-blue-600" />}
+        iconBg="bg-blue-100"
+        size="lg"
+      >
+        <form onSubmit={save}>
+          <div className="px-6 py-5 space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">Nome *</label>
+              <input value={form.name} onChange={e => setForm({...form, name: e.target.value})} required className="input" placeholder="Ex: Dashboard Financeiro" />
             </div>
-            <form onSubmit={save} className="p-6 space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Nome *</label>
-                <input value={form.name} onChange={e => setForm({...form, name: e.target.value})} required className="input" />
-              </div>
 
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">Categoria</label>
+              <select value={form.category} onChange={e => setForm({...form, category: e.target.value})} className="input">
+                {categories.map(c => <option key={c.id} value={c.slug}>{c.name}</option>)}
+              </select>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Categoria</label>
-                <select value={form.category} onChange={e => setForm({...form, category: e.target.value})} className="input">
-                  {categories.map(c => <option key={c.id} value={c.slug}>{c.name}</option>)}
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">Grupo</label>
+                <select value={form._grupo_id} onChange={e => setGrupoForm(e.target.value)} className="input">
+                  <option value="">Todos os grupos</option>
+                  {grupos.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
                 </select>
               </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">Contrato</label>
+                <select value={form.contrato_id} onChange={e => setForm({...form, contrato_id: e.target.value})} className="input">
+                  <option value="">Sem contrato</option>
+                  {contratosDoGrupo.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                </select>
+              </div>
+            </div>
 
-              {/* Grupo → Contrato cascade */}
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Grupo</label>
-                  <select value={form._grupo_id} onChange={e => setGrupoForm(e.target.value)} className="input">
-                    <option value="">Todos os grupos</option>
-                    {grupos.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Contrato</label>
-                  <select value={form.contrato_id} onChange={e => setForm({...form, contrato_id: e.target.value})} className="input">
-                    <option value="">Sem contrato</option>
-                    {contratosDoGrupo.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                  </select>
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">URL de Embed / Link *</label>
-                <input value={form.embed_url} onChange={e => setForm({...form, embed_url: e.target.value})} required className="input" placeholder="https://..." />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Descrição</label>
-                <textarea value={form.description || ''} onChange={e => setForm({...form, description: e.target.value})} className="input" rows={2} />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Tags (separadas por vírgula)</label>
-                <input value={form.tags || ''} onChange={e => setForm({...form, tags: e.target.value})} className="input" placeholder="vendas, financeiro, mensal" />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Contexto DAX / Regras de Negócio</label>
-                <textarea value={form.dax_context || ''} onChange={e => setForm({...form, dax_context: e.target.value})} className="input font-mono text-xs" rows={4} placeholder="Descreva as medidas DAX, KPIs e regras de negócio..." />
-              </div>
-              <div className="flex items-center gap-6">
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input type="checkbox" checked={form.is_active} onChange={e => setForm({...form, is_active: e.target.checked})} className="rounded" />
-                  <span className="text-sm text-gray-700">Ativo</span>
-                </label>
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input type="checkbox" checked={form.is_public} onChange={e => setForm({...form, is_public: e.target.checked})} className="rounded" />
-                  <span className="text-sm text-gray-700">Público (sem login)</span>
-                </label>
-              </div>
-              <div className="flex justify-end gap-3 pt-2">
-                <button type="button" onClick={() => setModal(false)} className="btn-secondary">Cancelar</button>
-                <button type="submit" disabled={loading} className="btn-primary">{loading ? 'Salvando...' : 'Salvar'}</button>
-              </div>
-            </form>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">URL de Embed / Link *</label>
+              <input value={form.embed_url} onChange={e => setForm({...form, embed_url: e.target.value})} required className="input" placeholder="https://..." />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">Descrição</label>
+              <textarea value={form.description || ''} onChange={e => setForm({...form, description: e.target.value})} className="input resize-none" rows={2} />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">Tags <span className="text-gray-400 font-normal">(separadas por vírgula)</span></label>
+              <input value={form.tags || ''} onChange={e => setForm({...form, tags: e.target.value})} className="input" placeholder="vendas, financeiro, mensal" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">Contexto DAX / Regras de Negócio</label>
+              <textarea value={form.dax_context || ''} onChange={e => setForm({...form, dax_context: e.target.value})} className="input font-mono text-xs resize-none" rows={3} placeholder="Descreva as medidas DAX, KPIs e regras de negócio..." />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <label className="flex items-center gap-2.5 p-3 rounded-xl border border-gray-200 cursor-pointer hover:bg-gray-50 transition-colors">
+                <input type="checkbox" checked={form.is_active} onChange={e => setForm({...form, is_active: e.target.checked})} className="rounded accent-blue-600 w-4 h-4" />
+                <span className="text-sm text-gray-700">Ativo</span>
+              </label>
+              <label className="flex items-center gap-2.5 p-3 rounded-xl border border-gray-200 cursor-pointer hover:bg-gray-50 transition-colors">
+                <input type="checkbox" checked={form.is_public} onChange={e => setForm({...form, is_public: e.target.checked})} className="rounded accent-green-600 w-4 h-4" />
+                <span className="text-sm text-gray-700">Público (sem login)</span>
+              </label>
+            </div>
           </div>
-        </div>
-      )}
+          <ModalFooter onCancel={() => setModal(false)} loading={loading} saveLabel={editId ? 'Salvar alterações' : 'Cadastrar workspace'} />
+        </form>
+      </Modal>
     </Layout>
   )
 }

@@ -37,7 +37,7 @@ export default function Home() {
   }
 
   const categoryBySlug = new Map(categories.map(cat => [cat.slug, cat]))
-  const dashboardCategorySlugs = [...new Set(dashboards.map(d => d.category).filter(Boolean))]
+  const dashboardCategorySlugs = [...new Set(dashboards.map(d => d.category?.toLowerCase()).filter(Boolean))]
   const visibleCategories = [
     ...categories,
     ...dashboardCategorySlugs
@@ -56,7 +56,7 @@ export default function Home() {
 
   const filtered = activeTab === 'all'
     ? dashboards
-    : dashboards.filter(d => d.category === activeTab)
+    : dashboards.filter(d => d.category?.toLowerCase() === activeTab)
 
   return (
     <Layout>

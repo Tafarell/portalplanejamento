@@ -1,44 +1,42 @@
 import { useState, useEffect } from 'react'
 import api from '../../api/axios'
 import Layout from '../../components/Layout'
-import { Plus, Pencil, Trash2, Search, X, Building2, ChevronDown, ChevronRight, FileText } from 'lucide-react'
+import Modal, { ModalFooter } from '../../components/Modal'
+import { Plus, Pencil, Trash2, Search, Building2, ChevronDown, ChevronRight, FileText } from 'lucide-react'
 
-const EMPTY_GRUPO = { name: '', description: '', is_active: true }
+const EMPTY_GRUPO    = { name: '', description: '', is_active: true }
 const EMPTY_CONTRATO = { name: '', description: '', grupo_id: '', is_active: true }
 
 export default function AdminGrupos() {
-  const [grupos, setGrupos] = useState([])
+  const [grupos, setGrupos]     = useState([])
   const [contratos, setContratos] = useState([])
-  const [search, setSearch] = useState('')
+  const [search, setSearch]     = useState('')
   const [expanded, setExpanded] = useState({})
+  const [loading, setLoading]   = useState(false)
 
-  // Modals
-  const [grupoModal, setGrupoModal] = useState(false)
-  const [grupoForm, setGrupoForm] = useState(EMPTY_GRUPO)
-  const [grupoEditId, setGrupoEditId] = useState(null)
+  const [grupoModal, setGrupoModal]     = useState(false)
+  const [grupoForm, setGrupoForm]       = useState(EMPTY_GRUPO)
+  const [grupoEditId, setGrupoEditId]   = useState(null)
 
-  const [contratoModal, setContratoModal] = useState(false)
-  const [contratoForm, setContratoForm] = useState(EMPTY_CONTRATO)
+  const [contratoModal, setContratoModal]   = useState(false)
+  const [contratoForm, setContratoForm]     = useState(EMPTY_CONTRATO)
   const [contratoEditId, setContratoEditId] = useState(null)
-
-  const [loading, setLoading] = useState(false)
 
   const fetchAll = async () => {
     const [g, c] = await Promise.all([api.get('/grupos'), api.get('/contratos')])
-    setGrupos(g.data)
-    setContratos(c.data)
+    setGrupos(g.data); setContratos(c.data)
   }
   useEffect(() => { fetchAll() }, [])
 
-  // Grupo actions
+  // Grupo
   const openCreateGrupo = () => { setGrupoForm(EMPTY_GRUPO); setGrupoEditId(null); setGrupoModal(true) }
-  const openEditGrupo = g => { setGrupoForm({ name: g.name, description: g.description || '', is_active: g.is_active }); setGrupoEditId(g.id); setGrupoModal(true) }
+  const openEditGrupo   = g  => { setGrupoForm({ name: g.name, description: g.description || '', is_active: g.is_active }); setGrupoEditId(g.id); setGrupoModal(true) }
 
   const saveGrupo = async e => {
     e.preventDefault(); setLoading(true)
     try {
       if (grupoEditId) await api.put(`/grupos/${grupoEditId}`, grupoForm)
-      else await api.post('/grupos', grupoForm)
+      else             await api.post('/grupos', grupoForm)
       setGrupoModal(false); fetchAll()
     } finally { setLoading(false) }
   }
@@ -48,22 +46,16 @@ export default function AdminGrupos() {
     await api.delete(`/grupos/${id}`); fetchAll()
   }
 
-  // Contrato actions
-  const openCreateContrato = grupoId => {
-    setContratoForm({ ...EMPTY_CONTRATO, grupo_id: grupoId })
-    setContratoEditId(null); setContratoModal(true)
-  }
-  const openEditContrato = c => {
-    setContratoForm({ name: c.name, description: c.description || '', grupo_id: c.grupo_id, is_active: c.is_active })
-    setContratoEditId(c.id); setContratoModal(true)
-  }
+  // Contrato
+  const openCreateContrato = grupoId => { setContratoForm({ ...EMPTY_CONTRATO, grupo_id: grupoId }); setContratoEditId(null); setContratoModal(true) }
+  const openEditContrato   = c       => { setContratoForm({ name: c.name, description: c.description || '', grupo_id: c.grupo_id, is_active: c.is_active }); setContratoEditId(c.id); setContratoModal(true) }
 
   const saveContrato = async e => {
     e.preventDefault(); setLoading(true)
     try {
       const payload = { ...contratoForm, grupo_id: Number(contratoForm.grupo_id) }
       if (contratoEditId) await api.put(`/contratos/${contratoEditId}`, payload)
-      else await api.post('/contratos', payload)
+      else                await api.post('/contratos', payload)
       setContratoModal(false); fetchAll()
     } finally { setLoading(false) }
   }
@@ -74,17 +66,16 @@ export default function AdminGrupos() {
   }
 
   const toggleExpand = id => setExpanded(prev => ({ ...prev, [id]: !prev[id] }))
-
   const filteredGrupos = grupos.filter(g => g.name.toLowerCase().includes(search.toLowerCase()))
-  const contratosOf = grupoId => contratos.filter(c => c.grupo_id === grupoId)
+  const contratosOf    = grupoId => contratos.filter(c => c.grupo_id === grupoId)
 
   return (
     <Layout>
       <div className="p-5">
-        <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center justify-between mb-5">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Grupos & Contratos</h1>
-            <p className="text-gray-500 text-sm mt-1">{grupos.length} grupos · {contratos.length} contratos</p>
+            <h1 className="text-xl font-bold text-gray-900">Grupos & Contratos</h1>
+            <p className="text-gray-500 text-sm mt-0.5">{grupos.length} grupos · {contratos.length} contratos</p>
           </div>
           <button onClick={openCreateGrupo} className="btn-primary flex items-center gap-2">
             <Plus className="w-4 h-4" /> Novo Grupo
@@ -102,7 +93,6 @@ export default function AdminGrupos() {
             const isOpen = expanded[g.id]
             return (
               <div key={g.id} className="card overflow-hidden">
-                {/* Grupo header */}
                 <div className="flex items-center gap-3 px-4 py-3">
                   <button onClick={() => toggleExpand(g.id)} className="text-gray-400 hover:text-gray-600 p-0.5">
                     {isOpen ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
@@ -130,7 +120,6 @@ export default function AdminGrupos() {
                   </div>
                 </div>
 
-                {/* Contratos (expandido) */}
                 {isOpen && (
                   <div className="border-t border-gray-100 bg-gray-50/50">
                     {gContratos.length > 0 && (
@@ -163,7 +152,6 @@ export default function AdminGrupos() {
               </div>
             )
           })}
-
           {filteredGrupos.length === 0 && (
             <div className="card text-center py-16 text-gray-400">
               <Building2 className="w-12 h-12 mx-auto mb-3 opacity-30" />
@@ -174,71 +162,67 @@ export default function AdminGrupos() {
       </div>
 
       {/* Modal Grupo */}
-      {grupoModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
-          <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
-              <h2 className="font-semibold text-lg">{grupoEditId ? 'Editar' : 'Novo'} Grupo</h2>
-              <button onClick={() => setGrupoModal(false)} className="p-1 text-gray-400 hover:text-gray-700"><X className="w-5 h-5" /></button>
+      <Modal
+        open={grupoModal}
+        onClose={() => setGrupoModal(false)}
+        title={grupoEditId ? 'Editar Grupo' : 'Novo Grupo'}
+        subtitle="Grupos agrupam contratos e controlam o acesso dos usuários"
+        icon={<Building2 className="w-4 h-4 text-blue-600" />}
+        iconBg="bg-blue-100"
+      >
+        <form onSubmit={saveGrupo}>
+          <div className="px-6 py-5 space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">Nome *</label>
+              <input value={grupoForm.name} onChange={e => setGrupoForm({...grupoForm, name: e.target.value})} required className="input" placeholder="Ex: BRBPO" />
             </div>
-            <form onSubmit={saveGrupo} className="p-6 space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Nome *</label>
-                <input value={grupoForm.name} onChange={e => setGrupoForm({...grupoForm, name: e.target.value})} required className="input" />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Descrição</label>
-                <textarea value={grupoForm.description} onChange={e => setGrupoForm({...grupoForm, description: e.target.value})} className="input" rows={3} />
-              </div>
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input type="checkbox" checked={grupoForm.is_active} onChange={e => setGrupoForm({...grupoForm, is_active: e.target.checked})} className="rounded" />
-                <span className="text-sm text-gray-700">Ativo</span>
-              </label>
-              <div className="flex justify-end gap-3 pt-2">
-                <button type="button" onClick={() => setGrupoModal(false)} className="btn-secondary">Cancelar</button>
-                <button type="submit" disabled={loading} className="btn-primary">{loading ? 'Salvando...' : 'Salvar'}</button>
-              </div>
-            </form>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">Descrição</label>
+              <textarea value={grupoForm.description} onChange={e => setGrupoForm({...grupoForm, description: e.target.value})} className="input resize-none" rows={3} placeholder="Descrição opcional..." />
+            </div>
+            <label className="flex items-center gap-2.5 p-3 rounded-xl border border-gray-200 cursor-pointer hover:bg-gray-50 transition-colors">
+              <input type="checkbox" checked={grupoForm.is_active} onChange={e => setGrupoForm({...grupoForm, is_active: e.target.checked})} className="rounded accent-blue-600 w-4 h-4" />
+              <span className="text-sm text-gray-700">Grupo ativo</span>
+            </label>
           </div>
-        </div>
-      )}
+          <ModalFooter onCancel={() => setGrupoModal(false)} loading={loading} saveLabel={grupoEditId ? 'Salvar alterações' : 'Criar grupo'} />
+        </form>
+      </Modal>
 
       {/* Modal Contrato */}
-      {contratoModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
-          <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
-              <h2 className="font-semibold text-lg">{contratoEditId ? 'Editar' : 'Novo'} Contrato</h2>
-              <button onClick={() => setContratoModal(false)} className="p-1 text-gray-400 hover:text-gray-700"><X className="w-5 h-5" /></button>
+      <Modal
+        open={contratoModal}
+        onClose={() => setContratoModal(false)}
+        title={contratoEditId ? 'Editar Contrato' : 'Novo Contrato'}
+        subtitle="Contratos vinculam dashboards a um grupo"
+        icon={<FileText className="w-4 h-4 text-indigo-600" />}
+        iconBg="bg-indigo-100"
+      >
+        <form onSubmit={saveContrato}>
+          <div className="px-6 py-5 space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">Grupo *</label>
+              <select value={contratoForm.grupo_id} onChange={e => setContratoForm({...contratoForm, grupo_id: e.target.value})} required className="input">
+                <option value="">Selecione o grupo</option>
+                {grupos.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
+              </select>
             </div>
-            <form onSubmit={saveContrato} className="p-6 space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Grupo</label>
-                <select value={contratoForm.grupo_id} onChange={e => setContratoForm({...contratoForm, grupo_id: e.target.value})} required className="input">
-                  <option value="">Selecione o grupo</option>
-                  {grupos.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Nome *</label>
-                <input value={contratoForm.name} onChange={e => setContratoForm({...contratoForm, name: e.target.value})} required className="input" />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Descrição</label>
-                <textarea value={contratoForm.description} onChange={e => setContratoForm({...contratoForm, description: e.target.value})} className="input" rows={3} />
-              </div>
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input type="checkbox" checked={contratoForm.is_active} onChange={e => setContratoForm({...contratoForm, is_active: e.target.checked})} className="rounded" />
-                <span className="text-sm text-gray-700">Ativo</span>
-              </label>
-              <div className="flex justify-end gap-3 pt-2">
-                <button type="button" onClick={() => setContratoModal(false)} className="btn-secondary">Cancelar</button>
-                <button type="submit" disabled={loading} className="btn-primary">{loading ? 'Salvando...' : 'Salvar'}</button>
-              </div>
-            </form>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">Nome *</label>
+              <input value={contratoForm.name} onChange={e => setContratoForm({...contratoForm, name: e.target.value})} required className="input" placeholder="Ex: Ligue 180" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">Descrição</label>
+              <textarea value={contratoForm.description} onChange={e => setContratoForm({...contratoForm, description: e.target.value})} className="input resize-none" rows={3} placeholder="Descrição opcional..." />
+            </div>
+            <label className="flex items-center gap-2.5 p-3 rounded-xl border border-gray-200 cursor-pointer hover:bg-gray-50 transition-colors">
+              <input type="checkbox" checked={contratoForm.is_active} onChange={e => setContratoForm({...contratoForm, is_active: e.target.checked})} className="rounded accent-blue-600 w-4 h-4" />
+              <span className="text-sm text-gray-700">Contrato ativo</span>
+            </label>
           </div>
-        </div>
-      )}
+          <ModalFooter onCancel={() => setContratoModal(false)} loading={loading} saveLabel={contratoEditId ? 'Salvar alterações' : 'Criar contrato'} />
+        </form>
+      </Modal>
     </Layout>
   )
 }

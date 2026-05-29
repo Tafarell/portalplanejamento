@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 from typing import Optional
 from datetime import datetime
 
@@ -14,6 +14,11 @@ class DashboardBase(BaseModel):
     contrato_id: Optional[int] = None
     dax_context: Optional[str] = None
 
+    @field_validator("category")
+    @classmethod
+    def normalize_category(cls, value: str) -> str:
+        return value.strip().lower()
+
 class DashboardCreate(DashboardBase):
     pass
 
@@ -28,6 +33,11 @@ class DashboardUpdate(BaseModel):
     client_id: Optional[int] = None
     contrato_id: Optional[int] = None
     dax_context: Optional[str] = None
+
+    @field_validator("category")
+    @classmethod
+    def normalize_category(cls, value: Optional[str]) -> Optional[str]:
+        return value.strip().lower() if value else value
 
 class DashboardOut(DashboardBase):
     id: int

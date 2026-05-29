@@ -9,7 +9,8 @@ const categoryConfig = {
 }
 
 export default function DashboardCard({ dashboard, onClick }) {
-  const cat = categoryConfig[dashboard.category] || categoryConfig.other
+  const categorySlug = dashboard.category?.toLowerCase()
+  const cat = categoryConfig[categorySlug] || categoryConfig.other
   const Icon = cat.icon
 
   return (
