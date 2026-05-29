@@ -4,10 +4,9 @@ import api from '../api/axios'
 import { useAuth } from '../context/AuthContext'
 import Layout from '../components/Layout'
 import DashboardCard from '../components/DashboardCard'
-import { Search, BarChart3, Monitor, LayoutGrid } from 'lucide-react'
+import { Search, BarChart3, Monitor } from 'lucide-react'
 
 const TABS = [
-  { key: 'all', label: 'Todos', icon: LayoutGrid, categories: [] },
   { key: 'bi', label: 'Dashboards', icon: BarChart3, categories: ['bi', 'report'] },
   { key: 'app', label: 'Aplicativos', icon: Monitor, categories: ['app'] },
 ]
@@ -20,7 +19,7 @@ export default function Home() {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const tabParam = searchParams.get('tab')
-  const activeTab = TABS.find(t => t.key === tabParam) ? tabParam : 'all'
+  const activeTab = TABS.find(t => t.key === tabParam) ? tabParam : 'bi'
 
   useEffect(() => {
     fetchDashboards()
@@ -47,7 +46,7 @@ export default function Home() {
 
   const countFor = key => {
     const tab = TABS.find(t => t.key === key)
-    if (!tab || tab.categories.length === 0) return dashboards.length
+    if (!tab) return 0
     return dashboards.filter(d => tab.categories.includes(d.category)).length
   }
 
@@ -127,6 +126,7 @@ export default function Home() {
                 <p className="text-lg font-medium text-gray-500">
                   {search ? 'Nenhum resultado encontrado' : `Nenhum ${activeTab === 'app' ? 'aplicativo' : 'dashboard'} disponível`}
                 </p>
+
                 <p className="text-sm mt-1">
                   {search ? 'Tente outro termo de busca' : 'Aguarde a liberação de acesso pelo administrador'}
                 </p>
