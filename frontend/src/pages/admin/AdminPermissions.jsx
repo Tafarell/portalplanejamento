@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import api from '../../api/axios'
 import Layout from '../../components/Layout'
+import ConfirmDialog from '../../components/ConfirmDialog'
 import { Shield, ChevronDown, ChevronRight, Plus, Trash2, Building2, FileText, BarChart3, X, Search, Users } from 'lucide-react'
 
 const SCOPE_OPTS = [
@@ -28,8 +29,9 @@ export default function AdminPermissions() {
   const [search, setSearch] = useState('')
   const [expanded, setExpanded] = useState({})
   const [addingFor, setAddingFor] = useState(null) // user_id being edited
-  const [form, setForm] = useState({ scope: 'dashboard', grupo_id: '', contrato_id: '', dashboard_id: '' })
+  const [form, setForm] = useState({ scope: 'dashboard', grupo_id: '', contrato_id: '', dashboard_id: '', _grupo_id: '' })
   const [loading, setLoading] = useState(false)
+  const [confirmPermId, setConfirmPermId] = useState(null)
 
   const fetchAll = async () => {
     const [p, u, g, c, d] = await Promise.all([
@@ -61,14 +63,14 @@ export default function AdminPermissions() {
       }
       await api.post('/permissions', payload)
       setAddingFor(null)
-      setForm({ scope: 'dashboard', grupo_id: '', contrato_id: '', dashboard_id: '' })
+      setForm({ scope: 'dashboard', grupo_id: '', contrato_id: '', dashboard_id: '', _grupo_id: '' })
       fetchAll()
     } finally { setLoading(false) }
   }
 
   const revoke = async (id) => {
-    if (!confirm('Revogar esta permissão?')) return
     await api.delete(`/permissions/${id}`)
+    setConfirmPermId(null)
     fetchAll()
   }
 
@@ -83,6 +85,13 @@ export default function AdminPermissions() {
   const contratosFiltered = form.grupo_id
     ? contratos.filter(c => c.grupo_id === parseInt(form.grupo_id))
     : contratos
+
+  const dashboardsFiltered = dashboards.filter(d => {
+    if (!form._grupo_id) return true
+    // find contratos of this grupo, then filter dashboards by contrato
+    const grupoContratos = contratos.filter(c => c.grupo_id === parseInt(form._grupo_id)).map(c => c.id)
+    return grupoContratos.includes(d.contrato_id)
+  })
 
   const toggle = (id) => setExpanded(prev => ({ ...prev, [id]: !prev[id] }))
 
@@ -168,7 +177,7 @@ export default function AdminPermissions() {
                               <div key={p.id} className="flex items-center gap-3 px-10 py-2.5">
                                 <ScopeBadge scope={p.scope} />
                                 <span className="flex-1 text-sm text-gray-700">{getScopeLabel(p)}</span>
-                                <button onClick={() => revoke(p.id)} className="p-1 text-gray-300 hover:text-red-500 rounded hover:bg-red-50 transition-colors">
+                                <button onClick={() => setConfirmPermId(p.id)} className="p-1 text-gray-300 hover:text-red-500 rounded hover:bg-red-50 transition-colors">
                                   <Trash2 className="w-3.5 h-3.5" />
                                 </button>
                               </div>
@@ -183,19 +192,26 @@ export default function AdminPermissions() {
                               {/* Scope */}
                               <div className="flex-shrink-0">
                                 <p className="text-xs text-gray-500 mb-1 font-medium">Tipo</p>
-                                <select value={form.scope} onChange={e => setForm({ scope: e.target.value, grupo_id: '', contrato_id: '', dashboard_id: '' })} className="input text-sm py-1.5">
+                                <select value={form.scope} onChange={e => setForm({ scope: e.target.value, grupo_id: '', contrato_id: '', dashboard_id: '', _grupo_id: '' })} className="input text-sm py-1.5">
                                   {SCOPE_OPTS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                                 </select>
                               </div>
 
-                              {/* Grupo filter (for contrato scope) */}
-                              {form.scope === 'contrato' && (
+                              {/* Grupo filter (for contrato or dashboard scope) */}
+                              {(form.scope === 'contrato' || form.scope === 'dashboard') && (
                                 <div className="flex-shrink-0">
-                                  <p className="text-xs text-gray-500 mb-1 font-medium">Grupo (filtro)</p>
-                                  <select value={form.grupo_id} onChange={e => setForm({...form, grupo_id: e.target.value, contrato_id: ''})} className="input text-sm py-1.5">
-                                    <option value="">Todos</option>
-                                    {grupos.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
-                                  </select>
+                                  <p className="text-xs text-gray-500 mb-1 font-medium">Grupo</p>
+                                  {form.scope === 'contrato' ? (
+                                    <select value={form.grupo_id} onChange={e => setForm({...form, grupo_id: e.target.value, contrato_id: ''})} className="input text-sm py-1.5">
+                                      <option value="">Todos</option>
+                                      {grupos.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
+                                    </select>
+                                  ) : (
+                                    <select value={form._grupo_id} onChange={e => setForm({...form, _grupo_id: e.target.value, dashboard_id: ''})} className="input text-sm py-1.5">
+                                      <option value="">Todos</option>
+                                      {grupos.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
+                                    </select>
+                                  )}
                                 </div>
                               )}
 
@@ -219,7 +235,7 @@ export default function AdminPermissions() {
                                 {form.scope === 'dashboard' && (
                                   <select value={form.dashboard_id} onChange={e => setForm({...form, dashboard_id: e.target.value})} className="input text-sm py-1.5" required>
                                     <option value="">Selecione...</option>
-                                    {dashboards.map(d => <option key={d.id} value={d.id}>{d.contrato_name ? `${d.contrato_name} › ${d.name}` : d.name}</option>)}
+                                    {dashboardsFiltered.map(d => <option key={d.id} value={d.id}>{d.contrato_name ? `${d.contrato_name} › ${d.name}` : d.name}</option>)}
                                   </select>
                                 )}
                               </div>
@@ -241,7 +257,7 @@ export default function AdminPermissions() {
                           </div>
                         ) : (
                           <div className="px-10 py-2.5">
-                            <button onClick={() => { setAddingFor(u.id); setForm({ scope: 'dashboard', grupo_id: '', contrato_id: '', dashboard_id: '' }) }}
+                            <button onClick={() => { setAddingFor(u.id); setForm({ scope: 'dashboard', grupo_id: '', contrato_id: '', dashboard_id: '', _grupo_id: '' }) }}
                               className="flex items-center gap-1.5 text-xs text-blue-600 hover:text-blue-800 font-medium">
                               <Plus className="w-3.5 h-3.5" /> Adicionar permissão
                             </button>
@@ -263,6 +279,14 @@ export default function AdminPermissions() {
           )}
         </div>
       </div>
+      <ConfirmDialog
+        open={!!confirmPermId}
+        title="Revogar permissão"
+        message="Esta ação não pode ser desfeita."
+        confirmLabel="Revogar"
+        onConfirm={() => revoke(confirmPermId)}
+        onCancel={() => setConfirmPermId(null)}
+      />
     </Layout>
   )
 }

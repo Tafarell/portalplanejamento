@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import api from '../../api/axios'
 import Layout from '../../components/Layout'
 import Modal, { ModalFooter } from '../../components/Modal'
+import ConfirmDialog from '../../components/ConfirmDialog'
 import { Plus, Pencil, Trash2, ToggleLeft, ToggleRight, Search, Users, UserPlus, Bot } from 'lucide-react'
 
 const EMPTY = { name: '', email: '', password: '', role: 'external', client_id: '', is_active: true, can_use_ai: false }
@@ -17,6 +18,7 @@ export default function AdminUsers() {
   const [form, setForm]     = useState(EMPTY)
   const [editId, setEditId] = useState(null)
   const [loading, setLoading] = useState(false)
+  const [confirmId, setConfirmId] = useState(null)
 
   const fetchAll = async () => {
     const [u, g] = await Promise.all([api.get('/users'), api.get('/grupos')])
@@ -40,8 +42,7 @@ export default function AdminUsers() {
   }
 
   const remove = async id => {
-    if (!confirm('Remover usuário permanentemente?')) return
-    await api.delete(`/users/${id}`); fetchAll()
+    await api.delete(`/users/${id}`); setConfirmId(null); fetchAll()
   }
   const toggle = async id => { await api.patch(`/users/${id}/toggle`); fetchAll() }
 
@@ -113,7 +114,7 @@ export default function AdminUsers() {
                         <button onClick={() => toggle(u.id)} className="p-1.5 text-gray-400 hover:text-yellow-600 rounded hover:bg-yellow-50">
                           {u.is_active ? <ToggleRight className="w-4 h-4" /> : <ToggleLeft className="w-4 h-4" />}
                         </button>
-                        <button onClick={() => remove(u.id)} className="p-1.5 text-gray-400 hover:text-red-600 rounded hover:bg-red-50">
+                        <button onClick={() => setConfirmId(u.id)} className="p-1.5 text-gray-400 hover:text-red-600 rounded hover:bg-red-50">
                           <Trash2 className="w-4 h-4" />
                         </button>
                       </div>
@@ -131,6 +132,15 @@ export default function AdminUsers() {
           </div>
         </div>
       </div>
+
+      <ConfirmDialog
+        open={!!confirmId}
+        title="Remover usuário"
+        message="Esta ação é permanente e não pode ser desfeita."
+        confirmLabel="Remover"
+        onConfirm={() => remove(confirmId)}
+        onCancel={() => setConfirmId(null)}
+      />
 
       <Modal
         open={modal}

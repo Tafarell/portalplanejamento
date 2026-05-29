@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import api from '../../api/axios'
 import Layout from '../../components/Layout'
 import Modal, { ModalFooter } from '../../components/Modal'
+import ConfirmDialog from '../../components/ConfirmDialog'
 import { Plus, Pencil, Trash2, Search, Building2, ChevronDown, ChevronRight, FileText } from 'lucide-react'
 
 const EMPTY_GRUPO    = { name: '', description: '', is_active: true }
@@ -13,6 +14,8 @@ export default function AdminGrupos() {
   const [search, setSearch]     = useState('')
   const [expanded, setExpanded] = useState({})
   const [loading, setLoading]   = useState(false)
+  const [confirmGrupo, setConfirmGrupo]       = useState(null)
+  const [confirmContrato, setConfirmContrato] = useState(null)
 
   const [grupoModal, setGrupoModal]     = useState(false)
   const [grupoForm, setGrupoForm]       = useState(EMPTY_GRUPO)
@@ -42,8 +45,7 @@ export default function AdminGrupos() {
   }
 
   const removeGrupo = async id => {
-    if (!confirm('Remover grupo? Os contratos vinculados também serão removidos.')) return
-    await api.delete(`/grupos/${id}`); fetchAll()
+    await api.delete(`/grupos/${id}`); setConfirmGrupo(null); fetchAll()
   }
 
   // Contrato
@@ -61,8 +63,7 @@ export default function AdminGrupos() {
   }
 
   const removeContrato = async id => {
-    if (!confirm('Remover contrato?')) return
-    await api.delete(`/contratos/${id}`); fetchAll()
+    await api.delete(`/contratos/${id}`); setConfirmContrato(null); fetchAll()
   }
 
   const toggleExpand = id => setExpanded(prev => ({ ...prev, [id]: !prev[id] }))
@@ -114,7 +115,7 @@ export default function AdminGrupos() {
                     <button onClick={() => openEditGrupo(g)} className="p-1.5 text-gray-400 hover:text-blue-600 rounded hover:bg-blue-50">
                       <Pencil className="w-3.5 h-3.5" />
                     </button>
-                    <button onClick={() => removeGrupo(g.id)} className="p-1.5 text-gray-400 hover:text-red-600 rounded hover:bg-red-50">
+                    <button onClick={() => setConfirmGrupo(g.id)} className="p-1.5 text-gray-400 hover:text-red-600 rounded hover:bg-red-50">
                       <Trash2 className="w-3.5 h-3.5" />
                     </button>
                   </div>
@@ -135,7 +136,7 @@ export default function AdminGrupos() {
                             <button onClick={() => openEditContrato(c)} className="p-1 text-gray-400 hover:text-blue-600 rounded hover:bg-blue-50">
                               <Pencil className="w-3 h-3" />
                             </button>
-                            <button onClick={() => removeContrato(c.id)} className="p-1 text-gray-400 hover:text-red-600 rounded hover:bg-red-50">
+                            <button onClick={() => setConfirmContrato(c.id)} className="p-1 text-gray-400 hover:text-red-600 rounded hover:bg-red-50">
                               <Trash2 className="w-3 h-3" />
                             </button>
                           </div>
@@ -160,6 +161,23 @@ export default function AdminGrupos() {
           )}
         </div>
       </div>
+
+      <ConfirmDialog
+        open={!!confirmGrupo}
+        title="Remover grupo"
+        message="Os contratos vinculados também serão removidos. Esta ação não pode ser desfeita."
+        confirmLabel="Remover"
+        onConfirm={() => removeGrupo(confirmGrupo)}
+        onCancel={() => setConfirmGrupo(null)}
+      />
+      <ConfirmDialog
+        open={!!confirmContrato}
+        title="Remover contrato"
+        message="Esta ação não pode ser desfeita."
+        confirmLabel="Remover"
+        onConfirm={() => removeContrato(confirmContrato)}
+        onCancel={() => setConfirmContrato(null)}
+      />
 
       {/* Modal Grupo */}
       <Modal

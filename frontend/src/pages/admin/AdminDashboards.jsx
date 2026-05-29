@@ -3,6 +3,7 @@ import api from '../../api/axios'
 import Layout from '../../components/Layout'
 import { Plus, Pencil, Trash2, ToggleLeft, ToggleRight, Search, X, Image, BarChart3, Settings, LayoutDashboard } from 'lucide-react'
 import Modal, { ModalFooter } from '../../components/Modal'
+import ConfirmDialog from '../../components/ConfirmDialog'
 
 const EMPTY = {
   name: '', description: '', category: '', embed_url: '',
@@ -24,6 +25,8 @@ export default function AdminDashboards() {
   const [form, setForm] = useState(EMPTY)
   const [editId, setEditId] = useState(null)
   const [loading, setLoading] = useState(false)
+  const [confirmId, setConfirmId] = useState(null)
+  const [confirmCatId, setConfirmCatId] = useState(null)
 
   // category form
   const CAT_EMPTY = { name: '', slug: '', icon: 'BarChart3', order: 0, is_active: true }
@@ -79,8 +82,7 @@ export default function AdminDashboards() {
   }
 
   const remove = async id => {
-    if (!confirm('Remover este dashboard?')) return
-    await api.delete(`/dashboards/${id}`); fetchAll()
+    await api.delete(`/dashboards/${id}`); setConfirmId(null); fetchAll()
   }
 
   const toggle = async id => { await api.patch(`/dashboards/${id}/toggle`); fetchAll() }
@@ -130,8 +132,7 @@ export default function AdminDashboards() {
     } finally { setCatLoading(false) }
   }
   const removeCat = async id => {
-    if (!confirm('Remover categoria?')) return
-    await api.delete(`/categories/${id}`); fetchAll()
+    await api.delete(`/categories/${id}`); setConfirmCatId(null); fetchAll()
   }
 
   return (
@@ -174,7 +175,7 @@ export default function AdminDashboards() {
                     {cat.is_active ? 'Ativa' : 'Inativa'}
                   </span>
                   <button onClick={() => openCatEdit(cat)} className="p-1 text-gray-400 hover:text-blue-600 rounded"><Pencil className="w-3.5 h-3.5" /></button>
-                  <button onClick={() => removeCat(cat.id)} className="p-1 text-gray-400 hover:text-red-500 rounded"><Trash2 className="w-3.5 h-3.5" /></button>
+                  <button onClick={() => setConfirmCatId(cat.id)} className="p-1 text-gray-400 hover:text-red-500 rounded"><Trash2 className="w-3.5 h-3.5" /></button>
                 </div>
               ))}
             </div>
@@ -262,7 +263,7 @@ export default function AdminDashboards() {
                           <Image className="w-4 h-4" />
                           <input type="file" className="hidden" accept="image/*" onChange={e => uploadCover(d.id, e.target.files[0])} />
                         </label>
-                        <button onClick={() => remove(d.id)} title="Excluir" className="p-1.5 text-gray-400 hover:text-red-600 rounded hover:bg-red-50">
+                        <button onClick={() => setConfirmId(d.id)} title="Excluir" className="p-1.5 text-gray-400 hover:text-red-600 rounded hover:bg-red-50">
                           <Trash2 className="w-4 h-4" />
                         </button>
                       </div>
@@ -280,6 +281,23 @@ export default function AdminDashboards() {
           </div>
         </div>
       </div>
+
+      <ConfirmDialog
+        open={!!confirmId}
+        title="Remover workspace"
+        message="Esta ação não pode ser desfeita."
+        confirmLabel="Remover"
+        onConfirm={() => remove(confirmId)}
+        onCancel={() => setConfirmId(null)}
+      />
+      <ConfirmDialog
+        open={!!confirmCatId}
+        title="Remover categoria"
+        message="Workspaces vinculados a esta categoria podem ficar sem aba."
+        confirmLabel="Remover"
+        onConfirm={() => removeCat(confirmCatId)}
+        onCancel={() => setConfirmCatId(null)}
+      />
 
       {/* Dashboard Modal */}
       <Modal

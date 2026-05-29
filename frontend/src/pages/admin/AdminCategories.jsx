@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import api from '../../api/axios'
 import Layout from '../../components/Layout'
+import ConfirmDialog from '../../components/ConfirmDialog'
 import { Layers3, Pencil, Plus, Search, Trash2, X, GripVertical, CheckCircle2, XCircle } from 'lucide-react'
 
 const EMPTY = { name: '', slug: '', icon: 'BarChart3', order: 0, is_active: true }
@@ -14,6 +15,7 @@ export default function AdminCategories() {
   const [editId, setEditId] = useState(null)
   const [search, setSearch] = useState('')
   const [loading, setLoading] = useState(false)
+  const [confirmCatId, setConfirmCatId] = useState(null)
 
   const fetchCategories = async () => {
     const { data } = await api.get('/categories')
@@ -49,8 +51,8 @@ export default function AdminCategories() {
   }
 
   const remove = async id => {
-    if (!confirm('Remover esta categoria? Workspaces vinculados podem ficar sem aba.')) return
     await api.delete(`/categories/${id}`)
+    setConfirmCatId(null)
     await fetchCategories()
   }
 
@@ -108,7 +110,7 @@ export default function AdminCategories() {
                       <button onClick={() => edit(cat)} className="p-1.5 text-gray-400 hover:text-blue-600 rounded-lg hover:bg-blue-50 transition-colors">
                         <Pencil className="w-3.5 h-3.5" />
                       </button>
-                      <button onClick={() => remove(cat.id)} className="p-1.5 text-gray-400 hover:text-red-500 rounded-lg hover:bg-red-50 transition-colors">
+                      <button onClick={() => setConfirmCatId(cat.id)} className="p-1.5 text-gray-400 hover:text-red-500 rounded-lg hover:bg-red-50 transition-colors">
                         <Trash2 className="w-3.5 h-3.5" />
                       </button>
                     </div>
@@ -198,6 +200,14 @@ export default function AdminCategories() {
           </div>
         </div>
       </div>
+      <ConfirmDialog
+        open={!!confirmCatId}
+        title="Remover categoria"
+        message="Dashboards vinculados a esta categoria podem ficar sem aba. Esta ação não pode ser desfeita."
+        confirmLabel="Remover"
+        onConfirm={() => remove(confirmCatId)}
+        onCancel={() => setConfirmCatId(null)}
+      />
     </Layout>
   )
 }
