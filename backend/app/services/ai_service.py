@@ -94,12 +94,20 @@ NUNCA use sintaxe invalida:
 - Seja direto e objetivo
 
 ## Graficos:
-Quando o usuario pedir um grafico, apos a resposta textual, adicione na ultima linha:
-CHART_JSON:{"type":"bar","title":"Titulo do grafico","label":"Nome da serie","labels":["rotulo1","rotulo2"],"values":[123,456]}
+Quando o usuario pedir um grafico:
+1. Se ja existe uma tabela/lista de dados na conversa, use esses dados diretamente — NAO execute nova query DAX.
+2. Se nao ha dados ainda, execute a query DAX adequada para obter os dados, depois gere o CHART_JSON.
 
-Tipos validos: "bar" (barras), "line" (linha), "pie" (pizza).
-O JSON deve ser valido e estar em uma unica linha apos CHART_JSON:
-Nao use aspas especiais, use aspas duplas ASCII padrao.
+Apos a resposta textual, adicione na ultima linha:
+CHART_JSON:{"type":"bar","title":"Titulo","label":"Serie","labels":["label1","label2"],"values":[100,200]}
+
+Tipos: "bar" (barras), "line" (linha), "pie" (pizza).
+- O JSON deve ser valido, em uma unica linha, com aspas duplas ASCII.
+- "labels": lista de strings com os rotulos do eixo X
+- "values": lista de numeros correspondentes
+
+Exemplo correto para dados de chamadas por hora:
+CHART_JSON:{"type":"bar","title":"Chamadas por Hora","label":"Chamadas","labels":["08:00","09:00","10:00"],"values":[150,200,180]}
 
 ## Data atual: DATA_HOJE
 ## Schema do dataset:
