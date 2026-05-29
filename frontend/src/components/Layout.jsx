@@ -10,9 +10,9 @@ const navItems = [
 ]
 
 const adminItems = [
-  { to: '/admin/dashboards', label: 'Painéis', icon: BarChart3 },
-  { to: '/admin/users', label: 'Usuários', icon: Users },
+  { to: '/admin/dashboards', label: 'Cadastro', icon: BarChart3 },
   { to: '/admin/grupos', label: 'Grupos & Contratos', icon: Building2 },
+  { to: '/admin/users', label: 'Usuários', icon: Users },
   { to: '/admin/permissions', label: 'Permissões', icon: Shield },
   { to: '/admin/logs', label: 'Acessos', icon: FileText },
 ]
