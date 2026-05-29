@@ -25,24 +25,81 @@ Ao analisar dados:
 
 Se não tiver dados suficientes, informe ao usuário e sugira o que seria necessário para responder."""
 
-PBI_SYSTEM_PROMPT = """Você é um assistente de Business Intelligence conectado ao Power BI.
+PBI_SYSTEM_PROMPT = """Você é um assistente de Business Intelligence conectado ao Power BI em tempo real.
 
-Você pode executar consultas DAX no dataset para buscar dados em tempo real e responder perguntas analíticas.
+Você executa consultas DAX para buscar dados e responder perguntas analíticas.
 
-## Como usar a ferramenta query_powerbi:
-- Escreva DAX válido baseado no esquema do dataset fornecido abaixo
-- Use EVALUATE + SUMMARIZECOLUMNS, TOPN, FILTER, ADDCOLUMNS, etc.
-- Para totais simples: EVALUATE ROW("Total", [NomeDaMedida])
-- Para tabelas: EVALUATE SUMMARIZECOLUMNS(Tabela[Coluna], "Alias", [Medida])
-- Se uma query falhar, tente reformulá-la de forma mais simples
+## REGRA DE ASPAS — OBRIGATÓRIO:
+
+Qualquer tabela com acento ou caractere especial DEVE ser envolta em aspas simples em TODO contexto DAX:
+- ✅ `'dCalendário'[Date]`
+- ✅ `FILTER(ALL('dCalendário'), 'dCalendário'[Date] = ...)`
+- ✅ `'dHorárioIntervalo'[Intervalo de Hora]`
+- ❌ `dCalendário[Date]` — SEM aspas causa erro de sintaxe
+
+## REGRA DE FILTRO POR CONTRATO — OBRIGATÓRIO:
+
+A dimensão **dGrupoEmpresa** identifica o contrato/serviço. Coluna-chave:
+- `secao_resumido` → nome do contrato (ex: "Ligue 180", "Ouvidoria", "Saúde da Mulher")
+
+Sempre que o usuário mencionar um contrato/serviço específico, SEMPRE filtre por `dGrupoEmpresa[secao_resumido]`.
+Sem esse filtro os totais incluem TODOS os contratos — resultado errado.
+
+## Sintaxe DAX correta — siga estritamente:
+
+**Total simples:**
+EVALUATE ROW("Total", [Medida])
+
+**Total filtrado por contrato:**
+EVALUATE CALCULATETABLE(
+    ROW("Total", [Chamadas Entrantes]),
+    dGrupoEmpresa[secao_resumido] = "Ligue 180"
+)
+
+**Total filtrado por data (ontem) + contrato:**
+EVALUATE CALCULATETABLE(
+    ROW("Total", [Chamadas Entrantes]),
+    'dCalendário'[Date] = TODAY() - 1,
+    dGrupoEmpresa[secao_resumido] = "Ligue 180"
+)
+
+**Total filtrado por mês atual:**
+EVALUATE CALCULATETABLE(
+    ROW("Total", [Chamadas Atendidas]),
+    MONTH('dCalendário'[Date]) = MONTH(TODAY()),
+    YEAR('dCalendário'[Date]) = YEAR(TODAY()),
+    dGrupoEmpresa[secao_resumido] = "Ligue 180"
+)
+
+**Tabela agrupada com filtros (use FILTER dentro de SUMMARIZECOLUMNS):**
+EVALUATE SUMMARIZECOLUMNS(
+    'dHorárioIntervalo'[Intervalo de Hora],
+    FILTER(ALL('dCalendário'), 'dCalendário'[Date] = TODAY() - 1),
+    FILTER(ALL(dGrupoEmpresa), dGrupoEmpresa[secao_resumido] = "Ligue 180"),
+    "Total", [Chamadas Atendidas]
+)
+
+**NUNCA use sintaxe inválida:**
+- SUMMARIZECOLUMNS(..., Tabela[Coluna] = valor)  ← ERRADO
+- SUMMARIZECOLUMNS(..., Tabela[Coluna] = TODAY())  ← ERRADO
+
+## Regras gerais:
+- Prefira CALCULATETABLE + ROW para totais com filtro — mais simples e confiável
+- Se SUMMARIZECOLUMNS falhar, tente CALCULATETABLE(ROW(...), filtros...)
 - Execute quantas queries forem necessárias para responder completamente
 
-## Formatação:
-- Apresente tabelas em markdown quando houver múltiplas colunas
-- Destaque valores importantes em **negrito**
-- Calcule variações percentuais quando relevante
-- Seja objetivo e direto
+## Formatação da resposta:
+- Apresente valores em **negrito**
+- Use tabelas markdown para múltiplas colunas
+- Seja direto e objetivo
 
+## Data atual:
+Hoje é {today} (ano {year}, mês {month}, dia {day}).
+- Ontem = TODAY() - 1 ou DATE({year}, {month}, {day} - 1)
+- Este mês = MONTH(TODAY()) = {month} e YEAR(TODAY()) = {year}
+- Use sempre o ano correto ({year}) ao construir datas fixas com DATE()
+
+## Schema do dataset:
 {schema}"""
 
 # Definição da ferramenta para tool calling
@@ -151,72 +208,21 @@ def chat_with_powerbi(
         }
     """
     from app.services.powerbi_service import (
-        get_pbi_token, get_dataset_schema, execute_dax_query, format_rows_for_llm
+        get_pbi_token, execute_dax_query, format_rows_for_llm
     )
 
     # 1. Token + schema
     token = get_pbi_token(tenant_id, client_id, client_secret)
 
+    from datetime import date
+    today = date.today()
     schema = schema_context or "Schema não fornecido — explore as tabelas com DAX (ex: EVALUATE TOPN(5, NomeDaTabela)) para descobrir os dados disponíveis."
-    system_content = PBI_SYSTEM_PROMPT.format(schema=schema)
-
-    messages = [{"role": "system", "content": system_content}]
-
-    if conversation_history:
-        for msg in conversation_history[-10:]:
-            messages.append({"role": msg["role"], "content": msg["content"]})
-
-    messages.append({"role": "user", "content": question})
-
-    pbi_queries: list[str] = []
-
-    # 2. Loop de tool calling
-    for _ in range(max_tool_iterations):
-        response = client.chat.completions.create(
-            model=settings.OPENAI_MODEL,
-            messages=messages,
-            tools=_PBI_TOOLS,
-            tool_choice="auto",
-            temperature=0.1,
-            max_tokens=3000,
-        )
-
-        msg = response.choices[0].message
-
-        # Sem tool call → resposta final
-        if not msg.tool_calls:
-            return {"answer": msg.content or "", "pbi_queries": pbi_queries}
-
-        # Processa tool calls (normalmente só 1 por vez)
-        messages.append(msg)  # adiciona a mensagem do assistant com tool_calls
-
-        for tool_call in msg.tool_calls:
-            try:
-                args = json.loads(tool_call.function.arguments)
-                dax = args.get("dax_query", "")
-            except Exception:
-                dax = ""
-
-            pbi_queries.append(dax)
-
-            # Executa o DAX
-            result = execute_dax_query(dataset_id, dax, token, workspace_id)
-            formatted = format_rows_for_llm(result)
-
-            messages.append({
-                "role": "tool",
-                "tool_call_id": tool_call.id,
-                "content": formatted,
-            })
-
-    # Fallback: força resposta final sem tools
-    response = client.chat.completions.create(
-        model=settings.OPENAI_MODEL,
-        messages=messages,
-        temperature=0.1,
-        max_tokens=3000,
+    system_content = PBI_SYSTEM_PROMPT.format(
+        schema=schema,
+        today=today.isoformat(),
+        year=today.year,
+        month=today.month,
+        day=today.day,
     )
-    return {
-        "answer": response.choices[0].message.content or "",
-        "pbi_queries": pbi_queries,
-    }
+
+    mes
