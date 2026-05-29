@@ -3,15 +3,13 @@ import { useParams, useNavigate } from 'react-router-dom'
 import api from '../api/axios'
 import Layout from '../components/Layout'
 import AIChat from '../components/AIChat'
-import { ArrowLeft, Bot, X, ExternalLink } from 'lucide-react'
+import { ArrowLeft, Bot, X, ExternalLink, Monitor } from 'lucide-react'
 
 function normalizeEmbedUrl(url) {
   if (!url) return ''
-
   try {
     const parsed = new URL(url)
     const parts = parsed.pathname.split('/').filter(Boolean)
-
     if (
       parsed.hostname.includes('app.powerbi.com') &&
       parts.includes('reports') &&
@@ -20,8 +18,7 @@ function normalizeEmbedUrl(url) {
       const reportId = parts[parts.indexOf('reports') + 1]
       const groupIndex = parts.indexOf('groups')
       const groupId = groupIndex >= 0 && parts[groupIndex + 1] !== 'me'
-        ? parts[groupIndex + 1]
-        : ''
+        ? parts[groupIndex + 1] : ''
       const embed = new URL('/reportEmbed', parsed.origin)
       if (reportId) embed.searchParams.set('reportId', reportId)
       if (groupId) embed.searchParams.set('groupId', groupId)
@@ -30,11 +27,45 @@ function normalizeEmbedUrl(url) {
       })
       return embed.toString()
     }
-  } catch {
-    return url
-  }
-
+  } catch { return url }
   return url
+}
+
+function isExternalBlocked(url) {
+  if (!url) return false
+  try {
+    const parsed = new URL(url)
+    // HTTP dentro de HTTPS é bloqueado pelo browser
+    if (window.location.protocol === 'https:' && parsed.protocol === 'http:') return true
+  } catch {}
+  return false
+}
+
+function ExternalAppCard({ name, description, url }) {
+  return (
+    <div className="flex flex-col items-center justify-center h-full bg-gradient-to-br from-gray-50 to-gray-100 px-6 text-center">
+      <div className="bg-white rounded-2xl shadow-lg p-10 max-w-md w-full border border-gray-200">
+        <div className="w-16 h-16 bg-indigo-50 rounded-2xl flex items-center justify-center mx-auto mb-5">
+          <Monitor className="w-8 h-8 text-indigo-600" />
+        </div>
+        <h2 className="text-xl font-bold text-gray-900 mb-2">{name}</h2>
+        {description && <p className="text-sm text-gray-500 mb-6">{description}</p>}
+        <p className="text-xs text-gray-400 mb-6">
+          Este aplicativo não pode ser exibido diretamente no portal por restrições de segurança do navegador.
+          Clique abaixo para abrir em uma nova aba.
+        </p>
+        <a
+          href={url}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center gap-2 px-6 py-3 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 transition-colors font-medium text-sm shadow-sm"
+        >
+          <ExternalLink className="w-4 h-4" />
+          Abrir {name}
+        </a>
+      </div>
+    </div>
+  )
 }
 
 export default function DashboardView() {
@@ -50,6 +81,7 @@ export default function DashboardView() {
 
   const sourceUrl = dashboard?.embed_url?.trim()
   const embedUrl = normalizeEmbedUrl(sourceUrl)
+  const blocked = isExternalBlocked(sourceUrl)
 
   if (loading) return (
     <Layout>
@@ -74,12 +106,14 @@ export default function DashboardView() {
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <button onClick={() => setShowAI(!showAI)}
-              className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-                showAI ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}>
-              <Bot className="w-4 h-4" />
-              <span className="hidden sm:inline">Assistente IA</span>
-            </button>
+            {!blocked && (
+              <button onClick={() => setShowAI(!showAI)}
+                className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+                  showAI ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}>
+                <Bot className="w-4 h-4" />
+                <span className="hidden sm:inline">Assistente IA</span>
+              </button>
+            )}
             <a href={sourceUrl || embedUrl} target="_blank" rel="noopener noreferrer"
               className="p-1.5 text-gray-400 hover:text-gray-700 rounded-lg hover:bg-gray-100">
               <ExternalLink className="w-5 h-5" />
@@ -90,7 +124,9 @@ export default function DashboardView() {
         {/* Body */}
         <div className="flex flex-1 min-h-0 overflow-hidden">
           <div className="flex-1 relative min-h-0 bg-white">
-            {embedUrl ? (
+            {blocked ? (
+              <ExternalAppCard name={dashboard?.name} description={dashboard?.description} url={sourceUrl} />
+            ) : embedUrl ? (
               <iframe
                 key={embedUrl}
                 src={embedUrl}
@@ -108,7 +144,7 @@ export default function DashboardView() {
           </div>
 
           {/* AI Panel */}
-          {showAI && (
+          {showAI && !blocked && (
             <div className="w-80 xl:w-96 flex-shrink-0 border-l border-gray-200 bg-white flex flex-col">
               <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200">
                 <div className="flex items-center gap-2">
