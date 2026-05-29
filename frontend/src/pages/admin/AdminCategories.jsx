@@ -93,7 +93,6 @@ export default function AdminCategories() {
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="font-semibold text-gray-900 text-sm">{cat.name}</p>
-                      <p className="text-xs text-gray-400 font-mono mt-0.5">{cat.slug}</p>
                     </div>
 
                     {/* Status */}

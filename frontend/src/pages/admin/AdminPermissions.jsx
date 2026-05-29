@@ -97,12 +97,9 @@ export default function AdminPermissions() {
   return (
     <Layout>
       <div className="p-5">
-        <div className="flex items-center gap-3 mb-5">
-          <Shield className="w-5 h-5 text-blue-600" />
-          <div>
-            <h1 className="text-xl font-bold text-gray-900">Controle de Acesso</h1>
-            <p className="text-gray-400 text-xs">{permissions.length} permissões ativas em {users.length} usuários</p>
-          </div>
+        <div className="mb-5">
+          <h1 className="text-xl font-bold text-gray-900">Controle de Acesso</h1>
+          <p className="text-gray-500 text-sm mt-0.5">{permissions.length} permissões ativas em {users.length} usuários</p>
         </div>
 
         {/* Search */}
