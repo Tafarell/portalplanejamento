@@ -35,8 +35,10 @@ function isExternalBlocked(url) {
   if (!url) return false
   try {
     const parsed = new URL(url)
-    // HTTP dentro de HTTPS é bloqueado pelo browser
+    // HTTP dentro de HTTPS é bloqueado
     if (window.location.protocol === 'https:' && parsed.protocol === 'http:') return true
+    // Qualquer URL que não seja Power BI é tratada como app externo
+    if (!parsed.hostname.includes('powerbi.com') && !parsed.hostname.includes('app.fabric.microsoft.com')) return true
   } catch {}
   return false
 }
