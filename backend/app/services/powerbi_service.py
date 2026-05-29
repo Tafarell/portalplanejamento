@@ -69,17 +69,23 @@ def execute_dax_query(dataset_id: str, dax_query: str, token: str, workspace_id:
             json=payload,
         )
 
-    data = resp.json()
+    try:
+        data = resp.json() or {}
+    except Exception:
+        data = {}
 
     # Erros de nível HTTP
     if resp.status_code >= 400:
-        err = data.get("error", {})
+        err = data.get("error", {}) if isinstance(data, dict) else {}
         return {
             "rows": [],
             "count": 0,
             "dax_query": dax_query,
             "error": err.get("message") or resp.text,
         }
+
+    if not isinstance(data, dict):
+        return {"rows": [], "count": 0, "dax_query": dax_query, "error": f"Resposta inesperada: {resp.text[:200]}"}
 
     # Erros de nível DAX
     results = data.get("results", [])
@@ -626,24 +632,18 @@ def discover_schema_fabric(
 
 def format_rows_for_llm(result: dict, max_rows: int = 200) -> str:
     """Converte o resultado de execute_dax_query em texto markdown para o LLM."""
+    if result is None:
+        return "❌ A consulta não retornou resultado (None)."
+    if not isinstance(result, dict):
+        return f"❌ Resultado inesperado: {type(result)}"
     if result.get("error"):
-        return f"❌ Erro na consulta DAX:\n```\n{result['error']}\n```\nQuery executada:\n```dax\n{result['dax_query']}\n```"
+        return f"❌ Erro na consulta DAX:\n```\n{result['error']}\n```\nQuery executada:\n```dax\n{result.get('dax_query','')}\n```"
 
-    rows = result["rows"]
+    rows = result.get("rows", [])
     if not rows:
         return "A consulta não retornou dados."
 
     # Cabeçalho da tabela
     headers = list(rows[0].keys())
     # Limpa os nomes das colunas (Power BI retorna "Tabela[Coluna]" → mostra só "Coluna")
-    clean_headers = [h.split("[")[-1].rstrip("]") if "[" in h else h for h in headers]
-
-    lines = ["| " + " | ".join(clean_headers) + " |"]
-    lines.append("| " + " | ".join("---" for _ in clean_headers) + " |")
-
-    for row in rows[:max_rows]:
-        vals = [str(row.get(h, "")) for h in headers]
-        lines.append("| " + " | ".join(vals) + " |")
-
-    suffix = f"\n\n*Exibindo {min(max_rows, len(rows))} de {result['count']} linhas.*" if result["count"] > max_rows else ""
-    return "\n".join(lines) + suffix
+    clean_headers = [h.split("[")[-1].rstrip("]") if "[" in h else h for h i
