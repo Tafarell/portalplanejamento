@@ -217,12 +217,9 @@ def chat_with_powerbi(
     from datetime import date
     today = date.today()
     schema = schema_context or "Schema não fornecido — explore as tabelas com DAX (ex: EVALUATE TOPN(5, NomeDaTabela)) para descobrir os dados disponíveis."
-    system_content = PBI_SYSTEM_PROMPT.format(
-        schema=schema,
-        today=today.isoformat(),
-        year=today.year,
-        month=today.month,
-        day=today.day,
-    )
 
-    mes
+    # Usa replace em vez de .format() para evitar KeyError quando o schema
+    # contém chaves { } em fórmulas DAX
+    system_content = (
+        PBI_SYSTEM_PROMPT
+        .replace("{today}
