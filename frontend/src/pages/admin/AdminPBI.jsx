@@ -15,11 +15,10 @@ function Step({ n, text }) {
       <span className="w-6 h-6 rounded-full bg-blue-600 text-white text-xs flex items-center justify-center flex-shrink-0 mt-0.5 font-bold">{n}</span>
       <p className="text-sm text-gray-700 leading-relaxed" dangerouslySetInnerHTML={{ __html: text }} />
     </div>
-    </Layout>
   )
 }
 
-function ConnectionCard({ conn, onEdit, onDelete, onTest, onDiscover }) {
+function ConnectionCard({ conn, onEdit, onDelete, onDiscover }) {
   const [testing, setTesting] = useState(false)
   const [testResult, setTestResult] = useState(null)
   const [discovering, setDiscovering] = useState(false)
@@ -41,7 +40,7 @@ function ConnectionCard({ conn, onEdit, onDelete, onTest, onDiscover }) {
         alert(`✅ ${data.table_count} tabelas e ${data.measure_count} medidas detectadas!`)
         onDiscover()
       } else if (data.needs_tables) {
-        alert('⚠️ Scanner API sem permissão. Use o botão Editar para inserir tabelas manualmente.')
+        alert('⚠️ Scanner API sem permissão. Use Editar para inserir tabelas manualmente.')
       } else {
         alert('Erro ao detectar schema')
       }
@@ -97,7 +96,6 @@ function ConnectionCard({ conn, onEdit, onDelete, onTest, onDiscover }) {
         </div>
       )}
     </div>
-    </Layout>
   )
 }
 
@@ -158,7 +156,6 @@ function ConnectionForm({ initial, onSave, onCancel }) {
         <input type="checkbox" id="is_active" checked={form.is_active} onChange={e => set('is_active', e.target.checked)} />
         <label htmlFor="is_active" className="text-sm text-gray-700">Conexão ativa</label>
       </div>
-
       <button onClick={() => setShowSchema(v => !v)}
         className="flex items-center gap-2 text-sm text-gray-500 hover:text-gray-700">
         {showSchema ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
@@ -170,7 +167,6 @@ function ConnectionForm({ initial, onSave, onCancel }) {
           {field('Medidas DAX', 'measures_context', { textarea: true, rows: 4, placeholder: 'Medidas adicionais para a IA' })}
         </div>
       )}
-
       <div className="flex gap-3 pt-2">
         <button onClick={handleSave} disabled={saving}
           className="px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 disabled:opacity-50">
@@ -181,7 +177,6 @@ function ConnectionForm({ initial, onSave, onCancel }) {
         </button>
       </div>
     </div>
-    </Layout>
   )
 }
 
@@ -203,11 +198,10 @@ export default function AdminPBI() {
 
   useEffect(() => { fetchConnections() }, [])
 
-  const handleEdit = (conn) => { setEditConn(conn); setShowForm(true) }
-  const handleNew  = () => { setEditConn(null); setShowForm(true) }
+  const handleEdit   = (conn) => { setEditConn(conn); setShowForm(true) }
+  const handleNew    = () => { setEditConn(null); setShowForm(true) }
   const handleCancel = () => { setShowForm(false); setEditConn(null) }
   const handleSaved  = () => { setShowForm(false); setEditConn(null); fetchConnections() }
-
   const handleDelete = async (id) => {
     if (!confirm('Remover esta conexão?')) return
     await api.delete(`/powerbi/connection/${id}`)
@@ -218,75 +212,61 @@ export default function AdminPBI() {
 
   return (
     <Layout>
-    <div className="max-w-4xl mx-auto p-6 space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Integração Power BI</h1>
-          <p className="text-sm text-gray-500 mt-1">
-            {activeCount} conexão{activeCount !== 1 ? 'ões ativas' : ' ativa'} — o chat IA pergunta qual usar quando houver mais de uma
-          </p>
+      <div className="max-w-4xl mx-auto p-6 space-y-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">Integração Power BI</h1>
+            <p className="text-sm text-gray-500 mt-1">
+              {activeCount} conexão{activeCount !== 1 ? 'ões ativas' : ' ativa'} — o chat IA pergunta qual usar quando houver mais de uma
+            </p>
+          </div>
+          <button onClick={handleNew}
+            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700">
+            <Plus className="w-4 h-4" /> Nova Conexão
+          </button>
         </div>
-        <button onClick={handleNew}
-          className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700">
-          <Plus className="w-4 h-4" /> Nova Conexão
-        </button>
-      </div>
 
-      {/* Guia */}
-      <div className="border border-blue-200 rounded-xl overflow-hidden">
-        <button onClick={() => setShowGuide(v => !v)}
-          className="w-full flex items-center justify-between px-5 py-3 bg-blue-50 text-blue-800 text-sm font-medium hover:bg-blue-100 transition-colors">
-          <span>Como configurar (Service Principal)</span>
-          {showGuide ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-        </button>
-        {showGuide && (
-          <div className="px-5 py-4 space-y-3 bg-white">
-            <Step n="1" text='No Azure Portal → <b>App Registrations</b> → Novo registro → anote o <b>Application (client) ID</b> e o <b>Directory (tenant) ID</b>' />
-            <Step n="2" text='Em <b>Certificates & Secrets</b> → Novo client secret → copie o valor' />
-            <Step n="3" text='No Power BI Admin Portal → <b>Tenant settings → Integration settings</b> → habilite <i>Dataset Execute Queries REST API</i> e <i>Allow service principals to use Power BI APIs</i>' />
-            <Step n="4" text='No workspace do Power BI → <b>Access</b> → adicione o Service Principal como <i>Member</i>' />
-            <Step n="5" text='Copie o <b>Dataset ID</b> da URL: <code class="text-xs bg-gray-100 px-1 rounded">app.powerbi.com/groups/.../datasets/{este-id}</code>' />
-            <Step n="6" text='Clique em <b>Nova Conexão</b>, preencha os campos e clique em <b>Detectar Schema</b>' />
-            <Step n="7" text='Para múltiplos datasets, crie uma conexão para cada um. O Assistente IA vai perguntar qual usar.' />
+        <div className="border border-blue-200 rounded-xl overflow-hidden">
+          <button onClick={() => setShowGuide(v => !v)}
+            className="w-full flex items-center justify-between px-5 py-3 bg-blue-50 text-blue-800 text-sm font-medium hover:bg-blue-100 transition-colors">
+            <span>Como configurar (Service Principal)</span>
+            {showGuide ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+          </button>
+          {showGuide && (
+            <div className="px-5 py-4 space-y-3 bg-white">
+              <Step n="1" text='No Azure Portal → <b>App Registrations</b> → Novo registro → anote o <b>Application (client) ID</b> e o <b>Directory (tenant) ID</b>' />
+              <Step n="2" text='Em <b>Certificates & Secrets</b> → Novo client secret → copie o valor' />
+              <Step n="3" text='No Power BI Admin Portal → <b>Tenant settings → Integration settings</b> → habilite <i>Dataset Execute Queries REST API</i> e <i>Allow service principals to use Power BI APIs</i>' />
+              <Step n="4" text='No workspace do Power BI → <b>Access</b> → adicione o Service Principal como <i>Member</i>' />
+              <Step n="5" text='Copie o <b>Dataset ID</b> da URL: <code class="text-xs bg-gray-100 px-1 rounded">app.powerbi.com/groups/.../datasets/{este-id}</code>' />
+              <Step n="6" text='Clique em <b>Nova Conexão</b>, preencha os campos e clique em <b>Detectar Schema</b>' />
+              <Step n="7" text='Para múltiplos datasets, crie uma conexão para cada um. O Assistente IA vai perguntar qual usar.' />
+            </div>
+          )}
+        </div>
+
+        {showForm && (
+          <ConnectionForm initial={editConn} onSave={handleSaved} onCancel={handleCancel} />
+        )}
+
+        {loading ? (
+          <div className="text-center text-gray-400 py-8">Carregando...</div>
+        ) : connections.length === 0 ? (
+          <div className="text-center py-12 text-gray-400">
+            <Database className="w-12 h-12 mx-auto mb-3 opacity-30" />
+            <p>Nenhuma conexão cadastrada</p>
+            <button onClick={handleNew} className="mt-4 px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700">
+              Criar primeira conexão
+            </button>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {connections.map(conn => (
+              <ConnectionCard key={conn.id} conn={conn} onEdit={handleEdit} onDelete={handleDelete} onDiscover={fetchConnections} />
+            ))}
           </div>
         )}
       </div>
-
-      {/* Formulário de nova/edição */}
-      {showForm && (
-        <ConnectionForm
-          initial={editConn}
-          onSave={handleSaved}
-          onCancel={handleCancel}
-        />
-      )}
-
-      {/* Lista de conexões */}
-      {loading ? (
-        <div className="text-center text-gray-400 py-8">Carregando...</div>
-      ) : connections.length === 0 ? (
-        <div className="text-center py-12 text-gray-400">
-          <Database className="w-12 h-12 mx-auto mb-3 opacity-30" />
-          <p>Nenhuma conexão cadastrada</p>
-          <button onClick={handleNew} className="mt-4 px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700">
-            Criar primeira conexão
-          </button>
-        </div>
-      ) : (
-        <div className="space-y-4">
-          {connections.map(conn => (
-            <ConnectionCard
-              key={conn.id}
-              conn={conn}
-              onEdit={handleEdit}
-              onDelete={handleDelete}
-              onDiscover={fetchConnections}
-            />
-          ))}
-        </div>
-      )}
-    </div>
     </Layout>
   )
 }
