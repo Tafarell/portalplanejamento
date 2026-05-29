@@ -646,4 +646,4 @@ def format_rows_for_llm(result: dict, max_rows: int = 200) -> str:
     # Cabeçalho da tabela
     headers = list(rows[0].keys())
     # Limpa os nomes das colunas (Power BI retorna "Tabela[Coluna]" → mostra só "Coluna")
-    clean_headers = [h.split("[")[-1].rstrip("]") if "[" in h else h for h i
+    clean_headers = [h.split("[")[-1].rstrip("]") if "[" in h else h for h in headers]
