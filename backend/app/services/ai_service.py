@@ -32,10 +32,10 @@ Você executa consultas DAX para buscar dados e responder perguntas analíticas.
 ## REGRA DE ASPAS — OBRIGATÓRIO:
 
 Qualquer tabela com acento ou caractere especial DEVE ser envolta em aspas simples em TODO contexto DAX:
-- Correto: 'dCalendario'[Date]
-- Correto: FILTER(ALL('dCalendario'), 'dCalendario'[Date] = ...)
+- Correto: 'dCalendário'[Date]
+- Correto: FILTER(ALL('dCalendário'), 'dCalendário'[Date] = ...)
 - Correto: 'dHorarioIntervalo'[Intervalo de Hora]
-- ERRADO: dCalendario[Date] sem aspas simples causa erro de sintaxe
+- ERRADO: dCalendário[Date] sem aspas simples causa erro de sintaxe
 
 ## REGRA DE FILTRO POR CONTRATO — OBRIGATÓRIO:
 
@@ -62,29 +62,29 @@ EVALUATE CALCULATETABLE(
 Total filtrado por data (ontem) + contrato:
 EVALUATE CALCULATETABLE(
     ROW("Total", [Chamadas Entrantes]),
-    'dCalendario'[Date] = TODAY() - 1,
+    'dCalendário'[Date] = TODAY() - 1,
     dGrupoEmpresa[secao_resumido] = "NomeDoContrato"
 )
 
 Total filtrado por mes atual + contrato:
 EVALUATE CALCULATETABLE(
     ROW("Total", [Chamadas Atendidas]),
-    MONTH('dCalendario'[Date]) = MONTH(TODAY()),
-    YEAR('dCalendario'[Date]) = YEAR(TODAY()),
+    MONTH('dCalendário'[Date]) = MONTH(TODAY()),
+    YEAR('dCalendário'[Date]) = YEAR(TODAY()),
     dGrupoEmpresa[secao_resumido] = "NomeDoContrato"
 )
 
 Tabela agrupada com filtros de data e contrato:
 EVALUATE SUMMARIZECOLUMNS(
     'dHorarioIntervalo'[Intervalo de Hora],
-    FILTER(ALL('dCalendario'), 'dCalendario'[Date] = TODAY() - 1),
+    FILTER(ALL('dCalendário'), 'dCalendário'[Date] = TODAY() - 1),
     FILTER(ALL(dGrupoEmpresa), dGrupoEmpresa[secao_resumido] = "NomeDoContrato"),
     "Total", [Chamadas Atendidas]
 )
 
 NUNCA use sintaxe invalida:
 - SUMMARIZECOLUMNS com igualdade direta: Tabela[Coluna] = valor ERRADO
-- Tabelas com acento sem aspas simples: dCalendario sem aspas ERRADO
+- Tabelas com acento sem aspas simples: dCalendário sem aspas ERRADO
 
 ## Comparacoes de periodo — sintaxe correta:
 
@@ -93,20 +93,20 @@ Filtros simples de igualdade (Date = valor) podem ir direto no CALCULATETABLE.
 
 Esta semana vs semana anterior:
 EVALUATE ROW(
-    "Esta Semana", CALCULATE([Chamadas Atendidas], FILTER(ALL('dCalendario'), WEEKNUM('dCalendario'[Date]) = WEEKNUM(TODAY()) && YEAR('dCalendario'[Date]) = YEAR(TODAY()))),
-    "Semana Anterior", CALCULATE([Chamadas Atendidas], FILTER(ALL('dCalendario'), WEEKNUM('dCalendario'[Date]) = WEEKNUM(TODAY()) - 1 && YEAR('dCalendario'[Date]) = YEAR(TODAY())))
+    "Esta Semana", CALCULATE([Chamadas Atendidas], FILTER(ALL('dCalendário'), WEEKNUM('dCalendário'[Date]) = WEEKNUM(TODAY()) && YEAR('dCalendário'[Date]) = YEAR(TODAY()))),
+    "Semana Anterior", CALCULATE([Chamadas Atendidas], FILTER(ALL('dCalendário'), WEEKNUM('dCalendário'[Date]) = WEEKNUM(TODAY()) - 1 && YEAR('dCalendário'[Date]) = YEAR(TODAY())))
 )
 
 Este mes vs mes anterior:
 EVALUATE ROW(
-    "Este Mes", CALCULATE([Chamadas Atendidas], FILTER(ALL('dCalendario'), MONTH('dCalendario'[Date]) = MONTH(TODAY()) && YEAR('dCalendario'[Date]) = YEAR(TODAY()))),
-    "Mes Anterior", CALCULATE([Chamadas Atendidas], FILTER(ALL('dCalendario'), MONTH('dCalendario'[Date]) = MONTH(TODAY()) - 1 && YEAR('dCalendario'[Date]) = YEAR(TODAY())))
+    "Este Mes", CALCULATE([Chamadas Atendidas], FILTER(ALL('dCalendário'), MONTH('dCalendário'[Date]) = MONTH(TODAY()) && YEAR('dCalendário'[Date]) = YEAR(TODAY()))),
+    "Mes Anterior", CALCULATE([Chamadas Atendidas], FILTER(ALL('dCalendário'), MONTH('dCalendário'[Date]) = MONTH(TODAY()) - 1 && YEAR('dCalendário'[Date]) = YEAR(TODAY())))
 )
 
 Ontem vs anteontem:
 EVALUATE ROW(
-    "Ontem", CALCULATE([Chamadas Atendidas], FILTER(ALL('dCalendario'), 'dCalendario'[Date] = TODAY() - 1)),
-    "Anteontem", CALCULATE([Chamadas Atendidas], FILTER(ALL('dCalendario'), 'dCalendario'[Date] = TODAY() - 2))
+    "Ontem", CALCULATE([Chamadas Atendidas], FILTER(ALL('dCalendário'), 'dCalendário'[Date] = TODAY() - 1)),
+    "Anteontem", CALCULATE([Chamadas Atendidas], FILTER(ALL('dCalendário'), 'dCalendário'[Date] = TODAY() - 2))
 )
 
 NUNCA use colunas que nao existem no schema como [Semana do Ano], [Mes], [Ano].
@@ -148,7 +148,7 @@ Quando o usuario pedir um grafico:
 Para grafico de chamadas por hora (padrao quando nao especificado):
 EVALUATE SUMMARIZECOLUMNS(
     'dHorarioIntervalo'[Intervalo de Hora],
-    FILTER(ALL('dCalendario'), 'dCalendario'[Date] = TODAY() - 1),
+    FILTER(ALL('dCalendário'), 'dCalendário'[Date] = TODAY() - 1),
     FILTER(ALL(dGrupoEmpresa), dGrupoEmpresa[secao_resumido] = "NomeDoContrato"),
     "Total", [Chamadas Bilhetadas]
 )
