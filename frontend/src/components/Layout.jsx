@@ -5,7 +5,7 @@ import { Users, LogOut, Menu, X, BarChart3, Bot, Building2, Shield, FileText, Ch
 import clsx from 'clsx'
 
 const navItems = [
-  { to: '/', label: 'Workspace', icon: BarChart3, exact: true },
+  { to: '/', label: 'Workspace', icon: LayoutGrid, exact: true },
   { to: '/ai', label: 'Assistente IA', icon: Bot, exact: true, internalOnly: true },
 ]
 
