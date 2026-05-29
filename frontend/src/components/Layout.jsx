@@ -1,19 +1,19 @@
 import { useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
-import { LayoutDashboard, Users, LogOut, Menu, X, BarChart3, Bot, Building2, Shield, FileText, FolderOpen } from 'lucide-react'
+import { Users, LogOut, Menu, X, BarChart3, Bot, Building2, Shield, FileText, Monitor } from 'lucide-react'
 import clsx from 'clsx'
 
 const navItems = [
-  { to: '/', label: 'Dashboards e Aplicativos', icon: BarChart3, exact: true },
+  { to: '/?tab=bi', label: 'Dashboards', icon: BarChart3, tabKey: 'bi' },
+  { to: '/?tab=app', label: 'Aplicativos', icon: Monitor, tabKey: 'app' },
   { to: '/ai', label: 'Assistente IA', icon: Bot, exact: true },
 ]
 
 const adminItems = [
   { to: '/admin/dashboards', label: 'Dashboards', icon: BarChart3 },
   { to: '/admin/users', label: 'Usuários', icon: Users },
-  { to: '/admin/grupos', label: 'Grupos', icon: Building2 },
-  { to: '/admin/contratos', label: 'Contratos', icon: FolderOpen },
+  { to: '/admin/grupos', label: 'Grupos & Contratos', icon: Building2 },
   { to: '/admin/permissions', label: 'Permissões', icon: Shield },
   { to: '/admin/logs', label: 'Acessos', icon: FileText },
 ]
@@ -49,8 +49,14 @@ export default function Layout({ children }) {
 
   const closeSidebar = () => setSidebarOpen(false)
 
-  const isActive = (item) =>
-    item.exact ? location.pathname === item.to : location.pathname.startsWith(item.to)
+  const isActive = (item) => {
+    if (item.tabKey) {
+      const params = new URLSearchParams(location.search)
+      return location.pathname === '/' && params.get('tab') === item.tabKey
+    }
+    if (item.exact) return location.pathname === item.to
+    return location.pathname.startsWith(item.to)
+  }
 
   const roleLabel = { admin: 'Administrador', internal: 'Interno', external: 'Externo' }
 

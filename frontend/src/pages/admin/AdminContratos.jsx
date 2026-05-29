@@ -139,7 +139,7 @@ export default function AdminContratos() {
             <form onSubmit={save} className="p-6 space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Nome *</label>
-                <input value={form.name} onChange={e => setForm({...form, name: e.target.value})} required className="input" placeholder="Ex: Ligue 180, MDHC, Embasa" />
+                <input value={form.name} onChange={e => setForm({...form, name: e.target.value})} required className="input" />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Grupo *</label>

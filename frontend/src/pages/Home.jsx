@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import api from '../api/axios'
 import { useAuth } from '../context/AuthContext'
 import Layout from '../components/Layout'
@@ -15,10 +15,12 @@ const TABS = [
 export default function Home() {
   const [dashboards, setDashboards] = useState([])
   const [search, setSearch] = useState('')
-  const [activeTab, setActiveTab] = useState('all')
   const [loading, setLoading] = useState(true)
   const { user } = useAuth()
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
+  const tabParam = searchParams.get('tab')
+  const activeTab = TABS.find(t => t.key === tabParam) ? tabParam : 'all'
 
   useEffect(() => {
     fetchDashboards()
@@ -79,7 +81,7 @@ export default function Home() {
               {TABS.map(tab => (
                 <button
                   key={tab.key}
-                  onClick={() => setActiveTab(tab.key)}
+                  onClick={() => navigate(tab.key === 'all' ? '/' : `/?tab=${tab.key}`)}
                   className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
                     activeTab === tab.key
                       ? 'border-blue-600 text-blue-600'

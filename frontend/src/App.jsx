@@ -10,7 +10,6 @@ import AdminDashboards from './pages/admin/AdminDashboards'
 import AdminUsers from './pages/admin/AdminUsers'
 import AdminClients from './pages/admin/AdminClients'
 import AdminGrupos from './pages/admin/AdminGrupos'
-import AdminContratos from './pages/admin/AdminContratos'
 import AdminPermissions from './pages/admin/AdminPermissions'
 import AdminLogs from './pages/admin/AdminLogs'
 
@@ -28,7 +27,6 @@ export default function App() {
           <Route path="/admin/users" element={<ProtectedRoute adminOnly><AdminUsers /></ProtectedRoute>} />
           <Route path="/admin/clients" element={<ProtectedRoute adminOnly><AdminClients /></ProtectedRoute>} />
           <Route path="/admin/grupos" element={<ProtectedRoute adminOnly><AdminGrupos /></ProtectedRoute>} />
-          <Route path="/admin/contratos" element={<ProtectedRoute adminOnly><AdminContratos /></ProtectedRoute>} />
           <Route path="/admin/permissions" element={<ProtectedRoute adminOnly><AdminPermissions /></ProtectedRoute>} />
           <Route path="/admin/logs" element={<ProtectedRoute adminOnly><AdminLogs /></ProtectedRoute>} />
           <Route path="*" element={<Navigate to="/" replace />} />
