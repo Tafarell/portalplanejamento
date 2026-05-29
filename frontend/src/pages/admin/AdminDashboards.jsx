@@ -130,16 +130,16 @@ export default function AdminDashboards() {
         {/* Header */}
         <div className="flex items-center justify-between mb-5">
           <div>
-            <h1 className="text-xl font-bold text-gray-900">Painéis</h1>
+            <h1 className="text-xl font-bold text-gray-900">Workspaces</h1>
             <p className="text-gray-500 text-sm mt-0.5">{dashboards.length} itens cadastrados</p>
           </div>
           <div className="flex items-center gap-2">
             <button onClick={() => setShowCatPanel(v => !v)} className="flex items-center gap-1.5 text-sm text-gray-600 hover:text-gray-900 border border-gray-200 rounded-lg px-3 py-2 hover:bg-gray-50 transition-colors">
               <Settings className="w-4 h-4" />
-              Categorias
+              Submenus
             </button>
             <button onClick={openCreate} className="btn-primary flex items-center gap-2">
-              <Plus className="w-4 h-4" /> Novo Painel
+              <Plus className="w-4 h-4" /> Novo Workspace
             </button>
           </div>
         </div>
@@ -148,7 +148,7 @@ export default function AdminDashboards() {
         {showCatPanel && (
           <div className="card p-4 mb-5 border border-blue-100 bg-blue-50/30">
             <div className="flex items-center justify-between mb-3">
-              <h2 className="font-semibold text-gray-800 text-sm">Gerenciar Categorias</h2>
+              <h2 className="font-semibold text-gray-800 text-sm">Gerenciar Submenus</h2>
               <button onClick={() => { setShowCatPanel(false); setCatEditId(null); setCatForm(CAT_EMPTY) }} className="text-gray-400 hover:text-gray-600">
                 <X className="w-4 h-4" />
               </button>
@@ -171,7 +171,7 @@ export default function AdminDashboards() {
 
             {/* Add/Edit form */}
             <form onSubmit={saveCat} className="border-t border-gray-200 pt-3">
-              <p className="text-xs font-semibold text-gray-500 uppercase mb-2">{catEditId ? 'Editar categoria' : 'Nova categoria'}</p>
+              <p className="text-xs font-semibold text-gray-500 uppercase mb-2">{catEditId ? 'Editar submenu' : 'Novo submenu'}</p>
               <div className="flex flex-wrap gap-2 items-end">
                 <div>
                   <label className="text-xs text-gray-500 block mb-1">Nome</label>
@@ -201,7 +201,7 @@ export default function AdminDashboards() {
         {/* Search */}
         <div className="relative mb-4">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-          <input value={search} onChange={e => setSearch(e.target.value)} className="input pl-9" placeholder="Buscar painéis..." />
+          <input value={search} onChange={e => setSearch(e.target.value)} className="input pl-9" placeholder="Buscar Workspaces..." />
         </div>
 
         {/* Table */}
@@ -264,7 +264,7 @@ export default function AdminDashboards() {
             {filtered.length === 0 && (
               <div className="text-center py-16 text-gray-400">
                 <BarChart3 className="w-12 h-12 mx-auto mb-3 opacity-30" />
-                <p>Nenhum painel encontrado</p>
+                <p>Nenhum Workspace encontrado</p>
               </div>
             )}
           </div>
@@ -276,7 +276,7 @@ export default function AdminDashboards() {
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
           <div className="bg-white rounded-2xl w-full max-w-2xl shadow-2xl max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
-              <h2 className="font-semibold text-lg">{editId ? 'Editar' : 'Novo'} Painel</h2>
+              <h2 className="font-semibold text-lg">{editId ? 'Editar' : 'Novo'} Workspace</h2>
               <button onClick={() => setModal(false)} className="p-1 text-gray-400 hover:text-gray-700"><X className="w-5 h-5" /></button>
             </div>
             <form onSubmit={save} className="p-6 space-y-4">

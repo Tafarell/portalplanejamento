@@ -12,6 +12,7 @@ import AdminClients from './pages/admin/AdminClients'
 import AdminGrupos from './pages/admin/AdminGrupos'
 import AdminPermissions from './pages/admin/AdminPermissions'
 import AdminLogs from './pages/admin/AdminLogs'
+import AdminCategories from './pages/admin/AdminCategories'
 
 export default function App() {
   return (
@@ -24,6 +25,7 @@ export default function App() {
           <Route path="/dashboard/:id" element={<ProtectedRoute><DashboardView /></ProtectedRoute>} />
           <Route path="/ai" element={<ProtectedRoute aiOnly><AIPage /></ProtectedRoute>} />
           <Route path="/admin/dashboards" element={<ProtectedRoute adminOnly><AdminDashboards /></ProtectedRoute>} />
+          <Route path="/admin/categories" element={<ProtectedRoute adminOnly><AdminCategories /></ProtectedRoute>} />
           <Route path="/admin/users" element={<ProtectedRoute adminOnly><AdminUsers /></ProtectedRoute>} />
           <Route path="/admin/clients" element={<ProtectedRoute adminOnly><AdminClients /></ProtectedRoute>} />
           <Route path="/admin/grupos" element={<ProtectedRoute adminOnly><AdminGrupos /></ProtectedRoute>} />

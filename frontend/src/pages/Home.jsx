@@ -36,35 +36,38 @@ export default function Home() {
     }
   }
 
-  // Tab ativa: usa ?tab= ou fallback para o primeiro slug disponível
+  const categoryBySlug = new Map(categories.map(cat => [cat.slug, cat]))
+  const dashboardCategorySlugs = [...new Set(dashboards.map(d => d.category).filter(Boolean))]
+  const visibleCategories = [
+    ...categories,
+    ...dashboardCategorySlugs
+      .filter(slug => !categoryBySlug.has(slug))
+      .map(slug => ({ id: `missing-${slug}`, slug, name: slug })),
+  ]
+
   const tabParam = searchParams.get('tab')
-  const activeTab = categories.find(c => c.slug === tabParam)
+  const activeTab = tabParam === 'all' || visibleCategories.find(c => c.slug === tabParam)
     ? tabParam
-    : categories[0]?.slug || 'bi'
+    : 'all'
 
   const setTab = (slug) => {
     setSearchParams({ tab: slug }, { replace: true })
   }
 
-  const filtered = dashboards.filter(d => d.category === activeTab)
-
-  const iconMap = {
-    BarChart3: <BarChart3 className="w-4 h-4" />,
-    Monitor: <BarChart3 className="w-4 h-4" />,
-    FileText: <BarChart3 className="w-4 h-4" />,
-  }
+  const filtered = activeTab === 'all'
+    ? dashboards
+    : dashboards.filter(d => d.category === activeTab)
 
   return (
     <Layout>
       <div className="h-full flex flex-col">
-        {/* Header */}
         <div className="bg-white border-b border-gray-200 px-4 pt-4 pb-0">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-3">
             <div>
               <h1 className="text-xl font-bold text-gray-900">
-                Olá, {user?.name?.split(' ')[0]} 👋
+                Ola, {user?.name?.split(' ')[0]}
               </h1>
-              <p className="text-gray-500 text-sm mt-0.5">Seus painéis disponíveis</p>
+              <p className="text-gray-500 text-sm mt-0.5">Seus Workspaces disponiveis</p>
             </div>
             <div className="relative w-full sm:w-72">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
@@ -77,10 +80,19 @@ export default function Home() {
             </div>
           </div>
 
-          {/* Tabs */}
-          {categories.length > 0 && (
-            <div className="flex gap-1">
-              {categories.map(cat => (
+          {visibleCategories.length > 0 && (
+            <div className="flex gap-1 overflow-x-auto">
+              <button
+                onClick={() => setTab('all')}
+                className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
+                  activeTab === 'all'
+                    ? 'border-blue-600 text-blue-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-800 hover:border-gray-300'
+                }`}
+              >
+                Todos
+              </button>
+              {visibleCategories.map(cat => (
                 <button
                   key={cat.slug}
                   onClick={() => setTab(cat.slug)}
@@ -97,7 +109,6 @@ export default function Home() {
           )}
         </div>
 
-        {/* Content */}
         <div className="flex-1 overflow-y-auto px-4 py-4">
           {loading ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
@@ -115,10 +126,10 @@ export default function Home() {
             <div className="flex flex-col items-center justify-center py-24 text-gray-400">
               <BarChart3 className="w-16 h-16 mb-4 opacity-25" />
               <p className="text-lg font-medium text-gray-500">
-                {search ? 'Nenhum resultado encontrado' : 'Nenhum painel disponível'}
+                {search ? 'Nenhum resultado encontrado' : 'Nenhum Workspace disponivel'}
               </p>
               <p className="text-sm mt-1">
-                {search ? 'Tente outro termo de busca' : 'Aguarde a liberação de acesso pelo administrador'}
+                {search ? 'Tente outro termo de busca' : 'Aguarde a liberacao de acesso pelo administrador'}
               </p>
             </div>
           ) : (
