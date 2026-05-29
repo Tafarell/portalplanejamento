@@ -285,8 +285,16 @@ export default function AIChat({ dashboardId, dashboardName }) {
       }
       setMessages(prev => [...prev, { role: 'assistant', content: data.answer, pbi_queries: data.pbi_queries || [] }])
       if (data.pbi_active !== undefined) setPbiActive(data.pbi_active)
-    } catch {
-      setMessages(prev => [...prev, { role: 'assistant', content: '❌ Erro ao processar sua pergunta. Tente novamente.', pbi_queries: [] }])
+    } catch (err) {
+      const status = err?.response?.status
+      const detail = err?.response?.data?.detail || ''
+      let msg = '❌ Erro ao processar sua pergunta. Tente novamente.'
+      if (status === 403) {
+        msg = '🔒 Você não tem permissão para usar o Assistente IA. Entre em contato com o administrador para solicitar acesso.'
+      } else if (detail) {
+        msg = '❌ ' + detail
+      }
+      setMessages(prev => [...prev, { role: 'assistant', content: msg, pbi_queries: [] }])
     } finally {
       setLoading(false)
     }
