@@ -1,12 +1,11 @@
 from pydantic import BaseModel
 from typing import Optional
 from datetime import datetime
-from app.models.dashboard import DashboardCategory
 
 class DashboardBase(BaseModel):
     name: str
     description: Optional[str] = None
-    category: DashboardCategory = DashboardCategory.BI
+    category: str = "bi"
     embed_url: str
     tags: Optional[str] = None
     is_active: bool = True
@@ -21,7 +20,7 @@ class DashboardCreate(DashboardBase):
 class DashboardUpdate(BaseModel):
     name: Optional[str] = None
     description: Optional[str] = None
-    category: Optional[DashboardCategory] = None
+    category: Optional[str] = None
     embed_url: Optional[str] = None
     tags: Optional[str] = None
     is_active: Optional[bool] = None
