@@ -184,4 +184,4 @@ async def upload_parquet(dashboard_id: int, file: UploadFile = File(...),
                          db: Session = Depends(get_db), admin=Depends(require_admin)):
     dashboard = db.query(Dashboard).filter(Dashboard.id == dashboard_id).first()
     if not dashboard:
-        raise HTTPException(status_code=404, detail="Dashboard não enco
+        raise HTTPException(status_code=404, detail="Dashboard não encontrado")
