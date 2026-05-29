@@ -245,44 +245,15 @@ def _parse_tmdl(tmdl_parts: dict[str, str]) -> dict:
     return {"schema_text": "\n".join(lines).strip(), "error": None}
 
 
-def discover_schema_fabric(
-    workspace_id: str,
-    dataset_id: str,
-    tenant_id: str,
-    client_id: str,
-    client_secret: str,
-) -> dict:
-    """
-    Busca a definição completa do Semantic Model via Fabric REST API.
-    Tenta os scopes do Fabric e do Power BI; parseia model.bim ou TMDL.
-
-    Retorna { "schema_text": str, "error": str|None }
-    """
+def _fabric_get_definition(item_id: str, workspace_id: str, headers: dict) -> dict:
+    """Chama /definition para um item_id específico, trata 202 e parseia."""
     import base64, time
 
-    # 1. Obter token — tenta Fabric scope primeiro
-    token = None
-    last_err = ""
-    for scope in [
-        "https://api.fabric.microsoft.com/.default",
-        "https://analysis.windows.net/powerbi/api/.default",
-    ]:
-        try:
-            token = _get_token(tenant_id, client_id, client_secret, scope)
-            break
-        except Exception as e:
-            last_err = str(e)
-    if not token:
-        return {"schema_text": "", "error": f"Falha ao obter token: {last_err}"}
-
-    # 2. Chamar endpoint de definição
-    url = f"{FABRIC_BASE_URL}/workspaces/{workspace_id}/semanticmodels/{dataset_id}/definition"
-    headers = {"Authorization": f"Bearer {token}"}
-
+    url = f"{FABRIC_BASE_URL}/workspaces/{workspace_id}/semanticmodels/{item_id}/definition"
     with httpx.Client(timeout=120) as c:
         resp = c.get(url, headers=headers)
 
-    # 3. Tratar 202 (operação assíncrona)
+    # Operação assíncrona
     if resp.status_code == 202:
         op_url = resp.headers.get("Location") or resp.headers.get("location")
         if not op_url:
@@ -300,9 +271,8 @@ def discover_schema_fabric(
             return {"schema_text": "", "error": "Timeout aguardando definição do modelo (60s)."}
 
     if resp.status_code != 200:
-        return {"schema_text": "", "error": f"HTTP {resp.status_code}: {resp.text[:600]}"}
+        return {"schema_text": "", "error": f"HTTP {resp.status_code}: {resp.text[:400]}"}
 
-    # 4. Parsear partes da resposta
     parts = resp.json().get("definition", {}).get("parts", [])
     tmdl_tables: dict[str, str] = {}
 
@@ -312,12 +282,8 @@ def discover_schema_fabric(
             content = base64.b64decode(part.get("payload", "")).decode("utf-8")
         except Exception:
             continue
-
-        # model.bim é o formato JSON — mais fácil de parsear
         if path.endswith("model.bim"):
             return _parse_bim(content)
-
-        # Arquivos TMDL por tabela: definition/tables/NomeDaTabela.tmdl
         if "/tables/" in path and path.endswith(".tmdl"):
             tbl_name = path.split("/tables/")[-1].removesuffix(".tmdl")
             tmdl_tables[tbl_name] = content
@@ -325,7 +291,74 @@ def discover_schema_fabric(
     if tmdl_tables:
         return _parse_tmdl(tmdl_tables)
 
-    return {"schema_text": "", "error": "Nenhum arquivo de definição encontrado na resposta."}
+    return {"schema_text": "", "error": "Nenhum arquivo de definição na resposta."}
+
+
+def discover_schema_fabric(
+    workspace_id: str,
+    dataset_id: str,
+    tenant_id: str,
+    client_id: str,
+    client_secret: str,
+) -> dict:
+    """
+    Busca a definição completa do Semantic Model via Fabric REST API.
+    1. Tenta com o dataset_id diretamente.
+    2. Se 404, lista todos os SemanticModels do workspace e tenta cada um.
+
+    Retorna { "schema_text": str, "error": str|None }
+    """
+    # 1. Token
+    token = None
+    last_err = ""
+    for scope in [
+        "https://api.fabric.microsoft.com/.default",
+        "https://analysis.windows.net/powerbi/api/.default",
+    ]:
+        try:
+            token = _get_token(tenant_id, client_id, client_secret, scope)
+            break
+        except Exception as e:
+            last_err = str(e)
+    if not token:
+        return {"schema_text": "", "error": f"Falha ao obter token: {last_err}"}
+
+    headers = {"Authorization": f"Bearer {token}"}
+
+    # 2. Tenta direto com o dataset_id
+    result = _fabric_get_definition(dataset_id, workspace_id, headers)
+    if not result.get("error"):
+        return result
+
+    first_error = result["error"]
+
+    # 3. Se 404 → lista os semantic models do workspace e tenta cada um
+    list_url = f"{FABRIC_BASE_URL}/workspaces/{workspace_id}/semanticmodels"
+    with httpx.Client(timeout=30) as c:
+        list_resp = c.get(list_url, headers=headers)
+
+    if list_resp.status_code != 200:
+        return {"schema_text": "", "error": (
+            f"ID direto falhou ({first_error}). "
+            f"Listagem também falhou: HTTP {list_resp.status_code} {list_resp.text[:300]}"
+        )}
+
+    models = list_resp.json().get("value", [])
+    if not models:
+        return {"schema_text": "", "error": "Nenhum Semantic Model encontrado no workspace."}
+
+    # Tenta primeiro o que tem o mesmo ID, depois os demais
+    ids = sorted(models, key=lambda m: (m.get("id") != dataset_id))
+    for model in ids:
+        item_id = model.get("id")
+        if not item_id:
+            continue
+        res = _fabric_get_definition(item_id, workspace_id, headers)
+        if not res.get("error"):
+            return res
+
+    names = ", ".join(f"{m.get('displayName')} ({m.get('id')})" for m in models)
+    return {"schema_text": "", "error": f"Nenhum modelo retornou definição. Modelos encontrados: {names}"}
 
 
 def format_rows_for_llm(result: dict, max_rows: int = 200) -> str:

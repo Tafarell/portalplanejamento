@@ -9,6 +9,7 @@ from app.utils.security import get_current_user
 from app.services.powerbi_service import (
     get_pbi_token, test_connection as pbi_test_connection,
     execute_dax_query, explore_tables_columns, discover_schema_fabric,
+    _get_token, FABRIC_BASE_URL,
 )
 
 router = APIRouter(prefix="/api/powerbi", tags=["Power BI"])
@@ -167,6 +168,29 @@ def explore_tables_endpoint(data: ExploreTablesIn,
         "tables_found": result["tables_found"],
         "errors": result["errors"],
     }
+
+
+@router.get("/fabric-models")
+def list_fabric_models(db: Session = Depends(get_db),
+                       current_user: User = Depends(get_current_user)):
+    """Lista os Semantic Models do workspace via Fabric API. Apenas admin."""
+    _require_admin(current_user)
+    conn = db.query(PBIConnection).filter(PBIConnection.is_active == True).first()
+    if not conn or not conn.workspace_id:
+        raise HTTPException(status_code=404, detail="Conexão ou Workspace ID não configurado.")
+    try:
+        import httpx as _httpx
+        token = _get_token(conn.tenant_id, conn.client_id, conn.client_secret,
+                           "https://api.fabric.microsoft.com/.default")
+        url = f"{FABRIC_BASE_URL}/workspaces/{conn.workspace_id}/semanticmodels"
+        resp = _httpx.get(url, headers={"Authorization": f"Bearer {token}"}, timeout=30)
+        if resp.status_code != 200:
+            raise HTTPException(status_code=resp.status_code, detail=resp.text[:400])
+        return resp.json()
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.post("/discover-schema-fabric")
