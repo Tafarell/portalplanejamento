@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import api from '../../api/axios'
 import Layout from '../../components/Layout'
-import { Plus, Pencil, Trash2, ToggleLeft, ToggleRight, Upload, Search, X, Image, BarChart3 } from 'lucide-react'
+import { Plus, Pencil, Trash2, ToggleLeft, ToggleRight, Search, X, Image, BarChart3 } from 'lucide-react'
 
 const EMPTY = {
   name: '', description: '', category: 'bi', embed_url: '',
@@ -68,12 +68,6 @@ export default function AdminDashboards() {
     await api.post(`/dashboards/${id}/cover`, fd); fetchAll()
   }
 
-  const uploadParquet = async (id, file) => {
-    const fd = new FormData(); fd.append('file', file)
-    await api.post(`/dashboards/${id}/parquet`, fd)
-    alert('Arquivo Parquet enviado!')
-  }
-
   // Contratos filtrados pelo grupo selecionado no formulário
   const contratosDoGrupo = filterGrupo
     ? contratos.filter(c => c.grupo_id === Number(filterGrupo))
@@ -137,7 +131,7 @@ export default function AdminDashboards() {
                     <td className="px-4 py-3 text-gray-500 text-sm">{d.contrato_name || '—'}</td>
                     <td className="px-4 py-3 text-gray-500 text-sm">{d.grupo_name || '—'}</td>
                     <td className="px-4 py-3">
-                      <span className={`badge ${d.is_active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
+                      <span className={`badge ${d.is_active ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-600'}`}>
                         {d.is_active ? 'Ativo' : 'Inativo'}
                       </span>
                     </td>
@@ -152,10 +146,6 @@ export default function AdminDashboards() {
                         <label title="Upload capa" className="p-1.5 text-gray-400 hover:text-purple-600 rounded hover:bg-purple-50 cursor-pointer">
                           <Image className="w-4 h-4" />
                           <input type="file" className="hidden" accept="image/*" onChange={e => uploadCover(d.id, e.target.files[0])} />
-                        </label>
-                        <label title="Upload Parquet" className="p-1.5 text-gray-400 hover:text-green-600 rounded hover:bg-green-50 cursor-pointer">
-                          <Upload className="w-4 h-4" />
-                          <input type="file" className="hidden" accept=".parquet" onChange={e => uploadParquet(d.id, e.target.files[0])} />
                         </label>
                         <button onClick={() => remove(d.id)} title="Excluir" className="p-1.5 text-gray-400 hover:text-red-600 rounded hover:bg-red-50">
                           <Trash2 className="w-4 h-4" />

@@ -28,10 +28,11 @@ export function AuthProvider({ children }) {
   }
 
   const isAdmin = () => user?.role === 'admin'
+  const isInternal = () => user?.role === 'admin' || user?.role === 'internal'
   const isAuthenticated = () => !!user
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, logout, isAdmin, isAuthenticated }}>
+    <AuthContext.Provider value={{ user, loading, login, logout, isAdmin, isInternal, isAuthenticated }}>
       {children}
     </AuthContext.Provider>
   )

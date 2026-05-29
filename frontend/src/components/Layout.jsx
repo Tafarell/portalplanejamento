@@ -7,7 +7,7 @@ import clsx from 'clsx'
 const navItems = [
   { to: '/?tab=bi', label: 'Dashboards', icon: BarChart3, tabKey: 'bi' },
   { to: '/?tab=app', label: 'Aplicativos', icon: Monitor, tabKey: 'app' },
-  { to: '/ai', label: 'Assistente IA', icon: Bot, exact: true },
+  { to: '/ai', label: 'Assistente IA', icon: Bot, exact: true, internalOnly: true },
 ]
 
 const adminItems = [
@@ -37,7 +37,7 @@ function NavLink({ item, active, onClick }) {
 }
 
 export default function Layout({ children }) {
-  const { user, logout, isAdmin } = useAuth()
+  const { user, logout, isAdmin, isInternal } = useAuth()
   const location = useLocation()
   const navigate = useNavigate()
   const [sidebarOpen, setSidebarOpen] = useState(false)
@@ -84,7 +84,7 @@ export default function Layout({ children }) {
 
       {/* Nav */}
       <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
-        {navItems.map(item => (
+        {navItems.filter(item => !item.internalOnly || isInternal()).map(item => (
           <NavLink key={item.to} item={item} active={isActive(item)} onClick={closeSidebar} />
         ))}
 
