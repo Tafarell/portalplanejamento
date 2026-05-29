@@ -101,6 +101,94 @@ def execute_dax_query(dataset_id: str, dax_query: str, token: str, workspace_id:
     }
 
 
+def _clean_key(k: str) -> str:
+    """Remove prefixo de tabela e colchetes dos nomes de coluna retornados pela API."""
+    if "[" in k:
+        return k.split("[")[-1].rstrip("]")
+    return k
+
+
+def discover_schema(dataset_id: str, token: str, workspace_id: Optional[str] = None) -> dict:
+    """
+    Descobre automaticamente o schema do dataset via DAX INFO functions.
+    Retorna:
+      {
+        "schema_text": str,   # texto formatado pronto para schema_context
+        "tables": list[str],  # nomes das tabelas
+        "error": str|None
+      }
+    """
+
+    # ── 1. Tabelas ────────────────────────────────────────────────────────────
+    t_res = execute_dax_query(
+        dataset_id,
+        'EVALUATE SELECTCOLUMNS(FILTER(INFO.TABLES(), NOT [IsHidden]), "ID", [ID], "Nome", [Name])',
+        token, workspace_id,
+    )
+    if t_res.get("error"):
+        return {"schema_text": "", "tables": [], "error": f"INFO functions indisponíveis: {t_res['error']}"}
+
+    tables: dict[int, str] = {}
+    for row in t_res["rows"]:
+        clean = {_clean_key(k): v for k, v in row.items()}
+        tid, tname = clean.get("ID"), clean.get("Nome")
+        if tid is not None and tname:
+            tables[tid] = tname
+
+    # ── 2. Colunas ────────────────────────────────────────────────────────────
+    c_res = execute_dax_query(
+        dataset_id,
+        'EVALUATE SELECTCOLUMNS('
+        'FILTER(INFO.COLUMNS(), NOT [IsHidden] && [State] = 1 && [Type] <> 3),'
+        ' "TableID", [TableID], "Coluna", [ExplicitName], "Tipo", [DataType])',
+        token, workspace_id,
+    )
+    table_columns: dict[str, list[str]] = {}
+    for row in c_res.get("rows", []):
+        clean = {_clean_key(k): v for k, v in row.items()}
+        tid = clean.get("TableID")
+        col = clean.get("Coluna")
+        if not col:
+            continue
+        tname = tables.get(tid, f"Tabela_{tid}")
+        table_columns.setdefault(tname, []).append(col)
+
+    # ── 3. Medidas ────────────────────────────────────────────────────────────
+    m_res = execute_dax_query(
+        dataset_id,
+        'EVALUATE SELECTCOLUMNS(INFO.MEASURES(), "TableID", [TableID], "Medida", [Name])',
+        token, workspace_id,
+    )
+    table_measures: dict[str, list[str]] = {}
+    for row in m_res.get("rows", []):
+        clean = {_clean_key(k): v for k, v in row.items()}
+        tid = clean.get("TableID")
+        measure = clean.get("Medida")
+        if not measure:
+            continue
+        tname = tables.get(tid, f"Tabela_{tid}")
+        table_measures.setdefault(tname, []).append(measure)
+
+    # ── 4. Formata o texto do schema ──────────────────────────────────────────
+    lines: list[str] = []
+    all_names = sorted(set(list(table_columns) + list(table_measures)))
+    for tname in all_names:
+        lines.append(f"Tabela: {tname}")
+        cols = table_columns.get(tname, [])
+        if cols:
+            lines.append(f"  Colunas: {', '.join(cols)}")
+        measures = table_measures.get(tname, [])
+        if measures:
+            lines.append(f"  Medidas: {', '.join(f'[{m}]' for m in measures)}")
+        lines.append("")
+
+    return {
+        "schema_text": "\n".join(lines).strip(),
+        "tables": list(tables.values()),
+        "error": None,
+    }
+
+
 def format_rows_for_llm(result: dict, max_rows: int = 200) -> str:
     """Converte o resultado de execute_dax_query em texto markdown para o LLM."""
     if result.get("error"):

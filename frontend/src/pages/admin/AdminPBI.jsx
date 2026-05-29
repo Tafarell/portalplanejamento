@@ -2,16 +2,18 @@ import { useState, useEffect } from 'react'
 import api from '../../api/axios'
 import Layout from '../../components/Layout'
 import ConfirmDialog from '../../components/ConfirmDialog'
-import { Zap, CheckCircle2, XCircle, Loader2, Eye, EyeOff, Trash2, RefreshCw, Database } from 'lucide-react'
+import { Zap, CheckCircle2, XCircle, Loader2, Eye, EyeOff, Trash2, RefreshCw, Database, Wand2 } from 'lucide-react'
 
 const EMPTY = { name: 'Conexão Power BI', dataset_id: '', workspace_id: '', tenant_id: '', client_id: '', client_secret: '', schema_context: '', is_active: true }
 
 export default function AdminPBI() {
   const [form, setForm]         = useState(EMPTY)
-  const [existing, setExisting] = useState(null)   // conexão salva
+  const [existing, setExisting] = useState(null)
   const [loading, setLoading]   = useState(false)
   const [testing, setTesting]   = useState(false)
-  const [testResult, setTestResult] = useState(null) // { ok, schema, error }
+  const [discovering, setDiscovering] = useState(false)
+  const [discoverResult, setDiscoverResult] = useState(null) // { ok, table_count, error }
+  const [testResult, setTestResult] = useState(null)
   const [showSecret, setShowSecret] = useState(false)
   const [confirmDel, setConfirmDel] = useState(false)
   const [saved, setSaved]       = useState(false)
@@ -54,11 +56,25 @@ export default function AdminPBI() {
     } finally { setTesting(false) }
   }
 
+  const discoverSchema = async () => {
+    setDiscovering(true)
+    setDiscoverResult(null)
+    try {
+      const { data } = await api.post('/powerbi/discover-schema')
+      // Preenche o textarea com o schema descoberto
+      setForm(f => ({ ...f, schema_context: data.schema_text }))
+      setDiscoverResult({ ok: true, table_count: data.table_count, tables: data.tables })
+    } catch (e) {
+      setDiscoverResult({ ok: false, error: e?.response?.data?.detail || 'Erro ao descobrir schema' })
+    } finally { setDiscovering(false) }
+  }
+
   const deleteConn = async () => {
     await api.delete('/powerbi/connection')
     setExisting(null)
     setForm(EMPTY)
     setTestResult(null)
+    setDiscoverResult(null)
     setConfirmDel(false)
   }
 
@@ -128,17 +144,48 @@ export default function AdminPBI() {
           {field('client_id', 'Client ID (Application ID)', 'xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx')}
           {field('client_secret', existing ? 'Client Secret (deixe em branco para manter)' : 'Client Secret', '••••••••••••••••', 'secret')}
 
+          {/* Schema / Contexto */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1.5">
-              Schema / Contexto do modelo <span className="text-gray-400 font-normal">(descreva as tabelas e medidas para a IA)</span>
-            </label>
+            <div className="flex items-center justify-between mb-1.5">
+              <label className="block text-sm font-medium text-gray-700">
+                Schema / Contexto do modelo{' '}
+                <span className="text-gray-400 font-normal">(tabelas e medidas para a IA)</span>
+              </label>
+              {existing && (
+                <button type="button" onClick={discoverSchema} disabled={discovering}
+                  className="flex items-center gap-1.5 text-xs font-medium text-purple-700 bg-purple-50 border border-purple-200 px-3 py-1.5 rounded-lg hover:bg-purple-100 transition-colors disabled:opacity-50">
+                  {discovering
+                    ? <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Detectando...</>
+                    : <><Wand2 className="w-3.5 h-3.5" /> Auto-detectar schema</>}
+                </button>
+              )}
+            </div>
+
+            {/* Resultado da descoberta */}
+            {discoverResult && (
+              <div className={`mb-2 px-3 py-2 rounded-lg text-xs flex items-center gap-2 ${
+                discoverResult.ok
+                  ? 'bg-purple-50 border border-purple-200 text-purple-800'
+                  : 'bg-red-50 border border-red-200 text-red-700'
+              }`}>
+                {discoverResult.ok
+                  ? <><CheckCircle2 className="w-3.5 h-3.5 flex-shrink-0" />
+                      Schema detectado: <strong>{discoverResult.table_count} tabelas</strong> — {discoverResult.tables?.join(', ')}</>
+                  : <><XCircle className="w-3.5 h-3.5 flex-shrink-0" /> {discoverResult.error}</>}
+              </div>
+            )}
+
             <textarea
               value={form.schema_context}
               onChange={e => setForm({ ...form, schema_context: e.target.value })}
               className="input resize-none font-mono text-xs"
-              rows={7}
+              rows={10}
               placeholder={`Exemplo:\nTabela: fVendas\n  Colunas: DataVenda, Produto, Valor, Quantidade, ClienteID\n  Medidas: [Total Vendas], [Qtd Pedidos], [Ticket Médio]\n\nTabela: dClientes\n  Colunas: ClienteID, Nome, Grupo, Contrato\n\nTabela: dCalendario\n  Colunas: Data, Ano, Mês, Semana`}
             />
+            <p className="text-xs text-gray-400 mt-1">
+              Clique em <strong>Auto-detectar schema</strong> para preencher automaticamente via DAX INFO functions, ou edite manualmente.
+              Após detectar, clique em <strong>Atualizar conexão</strong> para salvar.
+            </p>
           </div>
 
           <label className="flex items-center gap-2.5 p-3 rounded-xl border border-gray-200 cursor-pointer hover:bg-gray-50 transition-colors">
@@ -179,11 +226,9 @@ export default function AdminPBI() {
                 : <><XCircle className="w-5 h-5 text-red-500" /><span className="font-semibold text-red-700">Falha na conexão</span></>
               }
             </div>
-
             {testResult.error && (
               <pre className="text-xs text-red-700 bg-red-100 rounded-lg p-3 overflow-auto whitespace-pre-wrap">{testResult.error}</pre>
             )}
-
             {testResult.schema && (
               <div>
                 <p className="text-xs font-semibold text-green-700 mb-2 flex items-center gap-1.5">

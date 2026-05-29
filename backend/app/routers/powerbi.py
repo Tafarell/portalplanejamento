@@ -6,7 +6,7 @@ from app.database import get_db
 from app.models.pbi_connection import PBIConnection
 from app.models.user import User, UserRole
 from app.utils.security import get_current_user
-from app.services.powerbi_service import get_pbi_token, test_connection as pbi_test_connection, execute_dax_query
+from app.services.powerbi_service import get_pbi_token, test_connection as pbi_test_connection, execute_dax_query, discover_schema as pbi_discover_schema
 
 router = APIRouter(prefix="/api/powerbi", tags=["Power BI"])
 
@@ -120,13 +120,42 @@ def test_connection(db: Session = Depends(get_db),
 @router.get("/schema")
 def get_schema(db: Session = Depends(get_db),
                current_user: User = Depends(get_current_user)):
-    """Retorna o schema do dataset conectado. Usado pelo frontend do chat."""
+    """Retorna o schema salvo da conexão ativa."""
     conn = db.query(PBIConnection).filter(PBIConnection.is_active == True).first()
     if not conn:
         raise HTTPException(status_code=404, detail="Power BI não configurado")
+    return {"schema": conn.schema_context or ""}
+
+
+@router.post("/discover-schema")
+def discover_schema_endpoint(db: Session = Depends(get_db),
+                             current_user: User = Depends(get_current_user)):
+    """
+    Descobre automaticamente tabelas, colunas e medidas via DAX INFO functions.
+    Retorna o schema_text formatado e salva na conexão. Apenas admin.
+    """
+    _require_admin(current_user)
+
+    conn = db.query(PBIConnection).filter(PBIConnection.is_active == True).first()
+    if not conn:
+        raise HTTPException(status_code=404, detail="Nenhuma conexão configurada.")
+
     try:
         token  = get_pbi_token(conn.tenant_id, conn.client_id, conn.client_secret)
-        schema = get_dataset_schema(conn.dataset_id, token)
-        return {"schema": schema}
+        result = pbi_discover_schema(conn.dataset_id, token, conn.workspace_id)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+    if result.get("error"):
+        raise HTTPException(status_code=422, detail=result["error"])
+
+    # Salva automaticamente no banco
+    conn.schema_context = result["schema_text"]
+    db.commit()
+
+    return {
+        "ok": True,
+        "schema_text": result["schema_text"],
+        "tables": result["tables"],
+        "table_count": len(result["tables"]),
+    }
