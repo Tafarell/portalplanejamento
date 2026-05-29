@@ -6,7 +6,7 @@ from app.database import get_db
 from app.models.pbi_connection import PBIConnection
 from app.models.user import User, UserRole
 from app.utils.security import get_current_user
-from app.services.powerbi_service import get_pbi_token, test_connection, execute_dax_query
+from app.services.powerbi_service import get_pbi_token, test_connection as pbi_test_connection, execute_dax_query
 
 router = APIRouter(prefix="/api/powerbi", tags=["Power BI"])
 
@@ -109,7 +109,7 @@ def test_connection(db: Session = Depends(get_db),
 
     try:
         token  = get_pbi_token(conn.tenant_id, conn.client_id, conn.client_secret)
-        result = test_connection(conn.dataset_id, token, conn.workspace_id)
+        result = pbi_test_connection(conn.dataset_id, token, conn.workspace_id)
         if result["ok"]:
             return TestResult(ok=True, schema="✅ Conexão DAX bem-sucedida! Dataset acessível.")
         return TestResult(ok=False, error=result["error"])
