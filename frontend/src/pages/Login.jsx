@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, Link } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { BarChart3, Eye, EyeOff, Lock, Mail } from 'lucide-react'
 
@@ -31,11 +31,11 @@ export default function Login() {
       <div className="w-full max-w-md">
         {/* Logo */}
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 bg-blue-600 rounded-2xl mb-4 shadow-lg shadow-blue-500/30">
+          <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-blue-500 to-blue-700 rounded-2xl mb-4 shadow-lg shadow-blue-500/30">
             <BarChart3 className="w-8 h-8 text-white" />
           </div>
-          <h1 className="text-3xl font-bold text-white">Portal BI</h1>
-          <p className="text-slate-400 mt-1">Business Intelligence & Analytics</p>
+          <h1 className="text-3xl font-bold text-white">Portal do Planejamento</h1>
+          <p className="text-slate-400 mt-1 text-sm">Business Intelligence & Analytics</p>
         </div>
 
         {/* Card */}
@@ -60,7 +60,12 @@ export default function Login() {
             </div>
 
             <div>
-              <label className="block text-slate-300 text-sm mb-1.5">Senha</label>
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="block text-slate-300 text-sm">Senha</label>
+                <Link to="/forgot-password" className="text-blue-400 text-xs hover:text-blue-300 transition-colors">
+                  Esqueci minha senha
+                </Link>
+              </div>
               <div className="relative">
                 <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                 <input type={showPass ? 'text' : 'password'} value={password}
