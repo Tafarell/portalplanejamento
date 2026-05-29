@@ -65,13 +65,24 @@ def create_or_update_connection(data: PBIConnectionIn,
     """Cria ou substitui a conexão global do Power BI. Apenas admin."""
     _require_admin(current_user)
 
-    # Remove conexões anteriores
-    db.query(PBIConnection).delete()
-    conn = PBIConnection(**data.dict())
-    db.add(conn)
-    db.commit()
-    db.refresh(conn)
-    return conn
+    existing = db.query(PBIConnection).first()
+
+    if existing:
+        # Atualiza campos — preserva client_secret se vier vazio
+        update = data.dict()
+        if not update.get("client_secret"):
+            update.pop("client_secret")
+        for k, v in update.items():
+            setattr(existing, k, v)
+        db.commit()
+        db.refresh(existing)
+        return existing
+    else:
+        conn = PBIConnection(**data.dict())
+        db.add(conn)
+        db.commit()
+        db.refresh(conn)
+        return conn
 
 
 @router.delete("/connection")
