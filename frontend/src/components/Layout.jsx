@@ -88,6 +88,12 @@ export default function Layout({ children }) {
 
         {/* Nav */}
         <nav className={clsx('flex-1 py-3 space-y-0.5 overflow-y-auto', isCollapsed ? 'px-2' : 'px-3')}>
+          {/* Label MENU */}
+          {!isCollapsed && (
+            <div className="px-3 pt-1 pb-1.5">
+              <p className="text-slate-500 text-xs font-semibold uppercase tracking-widest">Menu</p>
+            </div>
+          )}
           {navItems.filter(item => !item.internalOnly || canUseAI()).map(item => (
             <NavLink
               key={item.to}
