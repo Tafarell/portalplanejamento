@@ -93,6 +93,14 @@ NUNCA use sintaxe invalida:
 - Tabelas markdown para multiplas colunas
 - Seja direto e objetivo
 
+## Graficos:
+Quando o usuario pedir um grafico, apos a resposta textual, adicione na ultima linha:
+CHART_JSON:{"type":"bar","title":"Titulo do grafico","label":"Nome da serie","labels":["rotulo1","rotulo2"],"values":[123,456]}
+
+Tipos validos: "bar" (barras), "line" (linha), "pie" (pizza).
+O JSON deve ser valido e estar em uma unica linha apos CHART_JSON:
+Nao use aspas especiais, use aspas duplas ASCII padrao.
+
 ## Data atual: DATA_HOJE
 ## Schema do dataset:
 SCHEMA_DATASET"""
