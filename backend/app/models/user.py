@@ -24,6 +24,6 @@ class User(Base):
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     last_login = Column(DateTime, nullable=True)
 
-    client = relationship("Client", back_populates="users")
+    client = relationship("Grupo", back_populates="users")
     permissions = relationship("Permission", back_populates="user", cascade="all, delete-orphan")
     access_logs = relationship("AccessLog", back_populates="user", cascade="all, delete-orphan")
