@@ -163,6 +163,111 @@ def explore_tables_columns(
     }
 
 
+def discover_schema_scanner(
+    workspace_id: str,
+    dataset_id: str,
+    tenant_id: str,
+    client_id: str,
+    client_secret: str,
+) -> dict:
+    """
+    Descobre schema completo via Power BI Scanner Admin API.
+    Requer: "Allow service principals to use read-only Power BI admin APIs" habilitado no tenant.
+
+    Retorna { "schema_text": str, "error": str|None }
+    """
+    import time
+
+    token = get_pbi_token(tenant_id, client_id, client_secret)
+    headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
+
+    # 1. Dispara o scan
+    scan_url = (
+        "https://api.powerbi.com/v1.0/myorg/admin/workspaces/getInfo"
+        "?lineage=false&datasourceDetails=false&datasetSchema=true&datasetExpressions=false"
+    )
+    with httpx.Client(timeout=30) as c:
+        resp = c.post(scan_url, headers=headers, json={"workspaces": [workspace_id]})
+
+    if resp.status_code not in (200, 202):
+        return {"schema_text": "", "error": f"Scanner API HTTP {resp.status_code}: {resp.text[:500]}"}
+
+    scan_id = resp.json().get("id")
+    if not scan_id:
+        return {"schema_text": "", "error": "Scanner API não retornou scan ID."}
+
+    # 2. Polling até status Succeeded
+    status_url = f"https://api.powerbi.com/v1.0/myorg/admin/workspaces/scanStatus/{scan_id}"
+    for _ in range(30):
+        time.sleep(2)
+        with httpx.Client(timeout=15) as c:
+            poll = c.get(status_url, headers=headers)
+        status = poll.json().get("status", "")
+        if status == "Succeeded":
+            break
+        if status in ("Failed", "Cancelled"):
+            return {"schema_text": "", "error": f"Scan {status}: {poll.text[:300]}"}
+    else:
+        return {"schema_text": "", "error": "Timeout aguardando Scanner API (60s)."}
+
+    # 3. Busca resultado
+    result_url = f"https://api.powerbi.com/v1.0/myorg/admin/workspaces/scanResult/{scan_id}"
+    with httpx.Client(timeout=30) as c:
+        result_resp = c.get(result_url, headers=headers)
+
+    if result_resp.status_code != 200:
+        return {"schema_text": "", "error": f"scanResult HTTP {result_resp.status_code}: {result_resp.text[:300]}"}
+
+    workspaces = result_resp.json().get("workspaces", [])
+    if not workspaces:
+        return {"schema_text": "", "error": "Nenhum workspace encontrado no resultado."}
+
+    # 4. Encontra o dataset correto
+    target_dataset = None
+    for ws in workspaces:
+        for ds in ws.get("datasets", []):
+            if ds.get("id") == dataset_id:
+                target_dataset = ds
+                break
+        if target_dataset:
+            break
+
+    if not target_dataset:
+        # Tenta pegar qualquer dataset do workspace
+        all_ds = [ds for ws in workspaces for ds in ws.get("datasets", [])]
+        if all_ds:
+            target_dataset = all_ds[0]
+        else:
+            return {"schema_text": "", "error": "Dataset não encontrado no resultado do scan."}
+
+    # 5. Formata schema
+    lines: list[str] = []
+    SKIP = {"DateTableTemplate", "LocalDateTable"}
+
+    for table in target_dataset.get("tables", []):
+        tname: str = table.get("name", "")
+        if any(tname.startswith(s) for s in SKIP):
+            continue
+
+        cols = [
+            c["name"] for c in table.get("columns", [])
+            if not c.get("isHidden") and c.get("columnType") != "RowNumber"
+        ]
+        measures = [
+            m["name"] for m in table.get("measures", [])
+            if not m.get("isHidden")
+        ]
+
+        lines.append(f"Tabela: {tname}")
+        if cols:
+            lines.append(f"  Colunas: {', '.join(cols)}")
+        if measures:
+            lines.append(f"  Medidas: {', '.join(f'[{m}]' for m in measures)}")
+        lines.append("")
+
+    return {"schema_text": "\n".join(lines).strip(), "error": None}
+
+
 def discover_schema(dataset_id: str, token: str, workspace_id: Optional[str] = None) -> dict:
     """
     Descobre schema via DAX INFO functions simples (sem SELECTCOLUMNS/FILTER).

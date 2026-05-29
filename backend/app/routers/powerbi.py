@@ -10,6 +10,7 @@ from app.services.powerbi_service import (
     get_pbi_token, test_connection as pbi_test_connection,
     execute_dax_query, explore_tables_columns, discover_schema_fabric,
     discover_schema as pbi_discover_schema,
+    discover_schema_scanner,
     _get_token, FABRIC_BASE_URL,
 )
 
@@ -135,14 +136,25 @@ def get_schema(db: Session = Depends(get_db),
 @router.post("/discover-schema")
 def discover_schema_endpoint(db: Session = Depends(get_db),
                              current_user: User = Depends(get_current_user)):
-    """Descobre schema completo via INFO.TABLES/COLUMNS/MEASURES. Salva na conexão. Apenas admin."""
+    """
+    Descobre schema completo via Scanner Admin API (tabelas + colunas + medidas).
+    Requer: 'Allow service principals to use read-only Power BI admin APIs' habilitado no tenant.
+    Apenas admin.
+    """
     _require_admin(current_user)
     conn = db.query(PBIConnection).filter(PBIConnection.is_active == True).first()
     if not conn:
         raise HTTPException(status_code=404, detail="Nenhuma conexão configurada.")
+    if not conn.workspace_id:
+        raise HTTPException(status_code=422, detail="Workspace ID é obrigatório para o Scanner API.")
     try:
-        token  = get_pbi_token(conn.tenant_id, conn.client_id, conn.client_secret)
-        result = pbi_discover_schema(conn.dataset_id, token, conn.workspace_id)
+        result = discover_schema_scanner(
+            workspace_id=conn.workspace_id,
+            dataset_id=conn.dataset_id,
+            tenant_id=conn.tenant_id,
+            client_id=conn.client_id,
+            client_secret=conn.client_secret,
+        )
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
     if result.get("error"):
