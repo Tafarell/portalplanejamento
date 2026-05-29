@@ -46,7 +46,6 @@ A dimensão dGrupoEmpresa identifica o contrato/servico. Coluna-chave:
 - Se o usuario NAO mencionar contrato especifico, NAO adicione filtro de contrato — retorne dados de todos os contratos.
 - Administrador pode ver todos os contratos sem restricao.
 
-## CONTRATOS PERMITIDOS PARA ESTE USUARIO:
 ALLOWED_CONTRACTS_PLACEHOLDER
 
 ## Sintaxe DAX correta:
@@ -243,7 +242,21 @@ def chat_with_powerbi(
         " e YEAR(TODAY()) = " + str(today.year) + "."
     )
 
-    system_content = PBI_SYSTEM_PROMPT.replace("DATA_HOJE", date_info).replace("SCHEMA_DATASET", schema)
+    # Monta restricao de contratos (vazio para admin)
+    if allowed_contracts is None:
+        contracts_section = ""  # admin: sem restricao, remove placeholder
+    elif len(allowed_contracts) == 0:
+        contracts_section = "## RESTRICAO CRITICA: Usuario sem permissao. Recuse todas as consultas e oriente contatar o administrador."
+    else:
+        names = ", ".join(f'"{c}"' for c in allowed_contracts)
+        contracts_section = "## CONTRATOS PERMITIDOS: " + names + "\nSe perguntar sobre outro contrato, recuse e oriente contatar o administrador."
+
+    system_content = (
+        PBI_SYSTEM_PROMPT
+        .replace("DATA_HOJE", date_info)
+        .replace("SCHEMA_DATASET", schema)
+        .replace("ALLOWED_CONTRACTS_PLACEHOLDER", contracts_section)
+    )
 
     messages = [{"role": "system", "content": system_content}]
     if conversation_history:
