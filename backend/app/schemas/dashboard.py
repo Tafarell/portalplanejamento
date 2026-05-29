@@ -12,6 +12,7 @@ class DashboardBase(BaseModel):
     is_active: bool = True
     is_public: bool = False
     client_id: Optional[int] = None
+    contrato_id: Optional[int] = None
     dax_context: Optional[str] = None
 
 class DashboardCreate(DashboardBase):
@@ -26,12 +27,15 @@ class DashboardUpdate(BaseModel):
     is_active: Optional[bool] = None
     is_public: Optional[bool] = None
     client_id: Optional[int] = None
+    contrato_id: Optional[int] = None
     dax_context: Optional[str] = None
 
 class DashboardOut(DashboardBase):
     id: int
     cover_image_url: Optional[str] = None
     parquet_file: Optional[str] = None
+    contrato_name: Optional[str] = None
+    grupo_name: Optional[str] = None
     created_at: datetime
     updated_at: datetime
 

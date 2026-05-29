@@ -3,8 +3,8 @@ from sqlalchemy import Column, Integer, String, Boolean, DateTime, Text
 from sqlalchemy.orm import relationship
 from app.database import Base
 
-class Client(Base):
-    __tablename__ = "clients"
+class Grupo(Base):
+    __tablename__ = "clients"  # mantém tabela existente
 
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String(200), nullable=False)
@@ -16,4 +16,7 @@ class Client(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
 
     users = relationship("User", back_populates="client")
-    permissions = relationship("Permission", back_populates="client", cascade="all, delete-orphan")
+    contratos = relationship("Contrato", back_populates="grupo", cascade="all, delete-orphan")
+
+# Alias para compatibilidade com código existente
+Client = Grupo

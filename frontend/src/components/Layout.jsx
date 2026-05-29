@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
-import { LayoutDashboard, Users, LogOut, Menu, X, BarChart3, Bot, Building2, Shield, FileText, ChevronDown } from 'lucide-react'
+import { LayoutDashboard, Users, LogOut, Menu, X, BarChart3, Bot, Building2, Shield, FileText, FolderOpen } from 'lucide-react'
 import clsx from 'clsx'
 
 const navItems = [
@@ -12,7 +12,8 @@ const navItems = [
 const adminItems = [
   { to: '/admin/dashboards', label: 'Dashboards', icon: BarChart3 },
   { to: '/admin/users', label: 'Usuários', icon: Users },
-  { to: '/admin/clients', label: 'Clientes', icon: Building2 },
+  { to: '/admin/grupos', label: 'Grupos', icon: Building2 },
+  { to: '/admin/contratos', label: 'Contratos', icon: FolderOpen },
   { to: '/admin/permissions', label: 'Permissões', icon: Shield },
   { to: '/admin/logs', label: 'Acessos', icon: FileText },
 ]

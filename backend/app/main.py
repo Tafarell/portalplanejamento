@@ -1,15 +1,17 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy import text
 from app.config import settings
 from app.database import Base, engine
 from app.models import *  # garante que todos os models são importados antes do create_all
 from app.routers import auth, users, clients, dashboards, permissions, access_logs, ai_assistant
+from app.routers import grupos, contratos
 from app.utils.security import hash_password
 
 app = FastAPI(
-    title="Portal BI API",
-    description="API do Portal de Business Intelligence",
-    version="1.0.0",
+    title="Portal do Planejamento API",
+    description="API do Portal de Planejamento & BI",
+    version="2.0.0",
     docs_url="/api/docs",
     redoc_url="/api/redoc"
 )
@@ -23,11 +25,28 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Criar tabelas no banco e seed do admin
 @app.on_event("startup")
 def startup():
     Base.metadata.create_all(bind=engine)
+    _run_migrations()
     _seed_admin()
+
+def _run_migrations():
+    """Adiciona colunas novas às tabelas existentes (idempotente)."""
+    migrations = [
+        "ALTER TABLE dashboards ADD COLUMN IF NOT EXISTS contrato_id INTEGER REFERENCES contratos(id)",
+        "ALTER TABLE permissions ADD COLUMN IF NOT EXISTS scope VARCHAR(20) DEFAULT 'dashboard'",
+        "ALTER TABLE permissions ADD COLUMN IF NOT EXISTS contrato_id INTEGER REFERENCES contratos(id)",
+        "ALTER TABLE permissions ADD COLUMN IF NOT EXISTS grupo_id INTEGER REFERENCES clients(id)",
+        "ALTER TABLE permissions ALTER COLUMN dashboard_id DROP NOT NULL",
+    ]
+    with engine.connect() as conn:
+        for sql in migrations:
+            try:
+                conn.execute(text(sql))
+                conn.commit()
+            except Exception:
+                conn.rollback()
 
 def _seed_admin():
     """Cria o usuário administrador padrão se não existir."""
@@ -52,7 +71,9 @@ def _seed_admin():
 # Routers
 app.include_router(auth.router)
 app.include_router(users.router)
-app.include_router(clients.router)
+app.include_router(clients.router)       # mantido para compatibilidade
+app.include_router(grupos.router)
+app.include_router(contratos.router)
 app.include_router(dashboards.router)
 app.include_router(permissions.router)
 app.include_router(access_logs.router)

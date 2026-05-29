@@ -1,44 +1,93 @@
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Query
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
+from sqlalchemy import or_
 from typing import List, Optional
 from app.database import get_db
 from app.models.dashboard import Dashboard, DashboardCategory
-from app.models.permission import Permission
+from app.models.permission import Permission, PermissionScope
+from app.models.contrato import Contrato
 from app.models.access_log import AccessLog
 from app.models.user import User, UserRole
 from app.schemas.dashboard import DashboardCreate, DashboardUpdate, DashboardOut
 from app.services import storage_service
 from app.utils.security import get_current_user, require_admin
-from app.config import settings
 
 router = APIRouter(prefix="/api/dashboards", tags=["Dashboards"])
 
+def _enrich(dashboard: Dashboard) -> DashboardOut:
+    out = DashboardOut.model_validate(dashboard)
+    if dashboard.contrato:
+        out.contrato_name = dashboard.contrato.name
+        if dashboard.contrato.grupo:
+            out.grupo_name = dashboard.contrato.grupo.name
+    return out
+
+def _get_accessible_ids(user: User, db: Session):
+    """Retorna set de dashboard_ids acessíveis ao usuário."""
+    perms = db.query(Permission).filter(
+        Permission.user_id == user.id,
+        Permission.can_view == True
+    ).all()
+
+    dashboard_ids = set()
+    contrato_ids = set()
+    grupo_ids = set()
+
+    for p in perms:
+        if p.scope == PermissionScope.DASHBOARD and p.dashboard_id:
+            dashboard_ids.add(p.dashboard_id)
+        elif p.scope == PermissionScope.CONTRATO and p.contrato_id:
+            contrato_ids.add(p.contrato_id)
+        elif p.scope == PermissionScope.GRUPO and p.grupo_id:
+            grupo_ids.add(p.grupo_id)
+
+    # Se usuário tem grupo associado, adiciona como grupo implícito
+    if user.client_id:
+        grupo_ids.add(user.client_id)
+
+    return dashboard_ids, contrato_ids, grupo_ids
+
 @router.get("/", response_model=List[DashboardOut])
-def list_dashboards(category: Optional[str] = None, client_id: Optional[int] = None,
-                    search: Optional[str] = None,
-                    db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    q = db.query(Dashboard).filter(Dashboard.is_active == True)
+def list_dashboards(
+    category: Optional[str] = None,
+    search: Optional[str] = None,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    q = db.query(Dashboard).options(
+        joinedload(Dashboard.contrato).joinedload(Contrato.grupo)
+    ).filter(Dashboard.is_active == True)
 
     if current_user.role != UserRole.ADMIN:
-        # Filtra apenas dashboards que o usuário tem permissão ou são públicos
-        permitted_ids = [p.dashboard_id for p in db.query(Permission)
-                         .filter(Permission.user_id == current_user.id, Permission.can_view == True).all()]
-        q = q.filter((Dashboard.id.in_(permitted_ids)) | (Dashboard.is_public == True))
-        if current_user.client_id:
-            q = q.filter((Dashboard.client_id == current_user.client_id) | (Dashboard.client_id == None))
+        dashboard_ids, contrato_ids, grupo_ids = _get_accessible_ids(current_user, db)
+
+        # Busca contrato_ids que pertencem aos grupos autorizados
+        if grupo_ids:
+            grupo_contrato_ids = {c.id for c in db.query(Contrato).filter(Contrato.grupo_id.in_(grupo_ids)).all()}
+            contrato_ids |= grupo_contrato_ids
+
+        conditions = [Dashboard.is_public == True]
+        if dashboard_ids:
+            conditions.append(Dashboard.id.in_(dashboard_ids))
+        if contrato_ids:
+            conditions.append(Dashboard.contrato_id.in_(contrato_ids))
+
+        q = q.filter(or_(*conditions))
 
     if category:
         q = q.filter(Dashboard.category == category)
-    if client_id:
-        q = q.filter(Dashboard.client_id == client_id)
     if search:
         q = q.filter(Dashboard.name.ilike(f"%{search}%"))
 
-    return q.order_by(Dashboard.name).all()
+    dashboards = q.order_by(Dashboard.name).all()
+    return [_enrich(d) for d in dashboards]
 
 @router.get("/admin", response_model=List[DashboardOut])
 def list_all_dashboards(db: Session = Depends(get_db), admin=Depends(require_admin)):
-    return db.query(Dashboard).order_by(Dashboard.name).all()
+    dashboards = db.query(Dashboard).options(
+        joinedload(Dashboard.contrato).joinedload(Contrato.grupo)
+    ).order_by(Dashboard.name).all()
+    return [_enrich(d) for d in dashboards]
 
 @router.post("/", response_model=DashboardOut)
 def create_dashboard(data: DashboardCreate, db: Session = Depends(get_db),
@@ -47,28 +96,37 @@ def create_dashboard(data: DashboardCreate, db: Session = Depends(get_db),
     db.add(dashboard)
     db.commit()
     db.refresh(dashboard)
-    return dashboard
+    # reload com joins
+    dashboard = db.query(Dashboard).options(
+        joinedload(Dashboard.contrato).joinedload(Contrato.grupo)
+    ).filter(Dashboard.id == dashboard.id).first()
+    return _enrich(dashboard)
 
 @router.get("/{dashboard_id}", response_model=DashboardOut)
 def get_dashboard(dashboard_id: int, db: Session = Depends(get_db),
                   current_user: User = Depends(get_current_user)):
-    dashboard = db.query(Dashboard).filter(Dashboard.id == dashboard_id).first()
+    dashboard = db.query(Dashboard).options(
+        joinedload(Dashboard.contrato).joinedload(Contrato.grupo)
+    ).filter(Dashboard.id == dashboard_id).first()
     if not dashboard:
         raise HTTPException(status_code=404, detail="Dashboard não encontrado")
-    
+
     if current_user.role != UserRole.ADMIN and not dashboard.is_public:
-        has_perm = db.query(Permission).filter(
-            Permission.user_id == current_user.id,
-            Permission.dashboard_id == dashboard_id,
-            Permission.can_view == True
-        ).first()
-        if not has_perm:
+        dashboard_ids, contrato_ids, grupo_ids = _get_accessible_ids(current_user, db)
+        if grupo_ids:
+            grupo_contrato_ids = {c.id for c in db.query(Contrato).filter(Contrato.grupo_id.in_(grupo_ids)).all()}
+            contrato_ids |= grupo_contrato_ids
+        has_access = (
+            dashboard_id in dashboard_ids or
+            (dashboard.contrato_id and dashboard.contrato_id in contrato_ids)
+        )
+        if not has_access:
             raise HTTPException(status_code=403, detail="Sem permissão de acesso")
-    
+
     log = AccessLog(user_id=current_user.id, dashboard_id=dashboard_id, action="view_dashboard")
     db.add(log)
     db.commit()
-    return dashboard
+    return _enrich(dashboard)
 
 @router.put("/{dashboard_id}", response_model=DashboardOut)
 def update_dashboard(dashboard_id: int, data: DashboardUpdate,
@@ -79,8 +137,10 @@ def update_dashboard(dashboard_id: int, data: DashboardUpdate,
     for field, value in data.model_dump(exclude_none=True).items():
         setattr(dashboard, field, value)
     db.commit()
-    db.refresh(dashboard)
-    return dashboard
+    dashboard = db.query(Dashboard).options(
+        joinedload(Dashboard.contrato).joinedload(Contrato.grupo)
+    ).filter(Dashboard.id == dashboard_id).first()
+    return _enrich(dashboard)
 
 @router.delete("/{dashboard_id}")
 def delete_dashboard(dashboard_id: int, db: Session = Depends(get_db), admin=Depends(require_admin)):
@@ -122,6 +182,6 @@ async def upload_parquet(dashboard_id: int, file: UploadFile = File(...),
         raise HTTPException(status_code=404, detail="Dashboard não encontrado")
     file_bytes = await file.read()
     storage_path = storage_service.upload_parquet(file_bytes, dashboard_id)
-    dashboard.parquet_file = storage_path  # armazena path relativo no Supabase Storage
+    dashboard.parquet_file = storage_path
     db.commit()
     return {"message": "Arquivo Parquet enviado com sucesso", "parquet_file": storage_path}
