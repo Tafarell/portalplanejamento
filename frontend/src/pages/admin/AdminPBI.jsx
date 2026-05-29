@@ -26,6 +26,12 @@ export default function AdminPBI() {
   const [exploring, setExploring]       = useState(false)
   const [exploreResult, setExploreResult] = useState(null)
 
+  // Gerenciador de medidas
+  const [measureInput, setMeasureInput]   = useState('')
+  const [verifying, setVerifying]         = useState(false)
+  const [verifyResult, setVerifyResult]   = useState(null) // { exists, measure, error }
+  const [measures, setMeasures]           = useState([])   // lista local extraída do schema
+
   const fetchConnection = async () => {
     try {
       const { data } = await api.get('/powerbi/connection')
@@ -37,6 +43,16 @@ export default function AdminPBI() {
       }
     } catch { /* sem conexão */ }
   }
+
+  // Extrai medidas do schema_context quando ele mudar
+  useEffect(() => {
+    const schema = form.schema_context || ''
+    const found = []
+    const regex = /\[([^\]]+)\]/g
+    let m
+    while ((m = regex.exec(schema)) !== null) found.push(m[1])
+    setMeasures([...new Set(found)])
+  }, [form.schema_context])
 
   useEffect(() => { fetchConnection() }, [])
 
@@ -68,7 +84,7 @@ export default function AdminPBI() {
     setFabricLoading(true)
     setFabricResult(null)
     try {
-      const { data } = await api.post('/powerbi/discover-schema-fabric')
+      const { data } = await api.post('/powerbi/discover-schema')
       setForm(f => ({ ...f, schema_context: data.schema_text }))
       setFabricResult({ ok: true, table_count: data.table_count, measure_count: data.measure_count })
     } catch (e) {
@@ -93,6 +109,41 @@ export default function AdminPBI() {
     } catch (e) {
       setExploreResult({ ok: false, error: e?.response?.data?.detail || 'Erro ao explorar tabelas' })
     } finally { setExploring(false) }
+  }
+
+  const verifyMeasure = async () => {
+    const name = measureInput.trim().replace(/^\[|\]$/g, '')
+    if (!name) return
+    setVerifying(true)
+    setVerifyResult(null)
+    try {
+      const { data } = await api.post('/powerbi/verify-measure', { measure_name: name })
+      if (data.exists) {
+        // Adiciona ao schema_context local
+        const entry = `[${name}]`
+        const schema = form.schema_context || ''
+        if (!schema.includes(entry)) {
+          const marker = '\n\n# Medidas verificadas:'
+          const newSchema = schema.includes(marker)
+            ? schema + `, ${entry}`
+            : schema + `${marker}\n${entry}`
+          setForm(f => ({ ...f, schema_context: newSchema }))
+        }
+        setMeasureInput('')
+      }
+      setVerifyResult(data)
+    } catch (e) {
+      setVerifyResult({ exists: false, error: e?.response?.data?.detail || 'Erro' })
+    } finally { setVerifying(false) }
+  }
+
+  const removeMeasure = (name) => {
+    const entry = `[${name}]`
+    const newSchema = (form.schema_context || '')
+      .replace(`, ${entry}`, '')
+      .replace(`${entry}, `, '')
+      .replace(entry, '')
+    setForm(f => ({ ...f, schema_context: newSchema }))
   }
 
   const deleteConn = async () => {
@@ -186,7 +237,7 @@ export default function AdminPBI() {
                       <Wand2 className="w-4 h-4" /> Detecção completa via Fabric API
                     </p>
                     <p className="text-xs text-indigo-600 mt-0.5">
-                      Busca tabelas, colunas <strong>e todas as medidas</strong> diretamente da definição do modelo semântico.
+                      Busca tabelas, colunas <strong>e todas as medidas</strong> via <code className="bg-indigo-100 px-1 rounded">INFO.TABLES/COLUMNS/MEASURES</code>.
                     </p>
                   </div>
                   <button type="button" onClick={discoverFabric} disabled={fabricLoading}
@@ -309,6 +360,66 @@ export default function AdminPBI() {
             )}
           </div>
         </form>
+
+        {/* Gerenciador de Medidas */}
+        {existing && (
+          <div className="card mt-4 p-5 space-y-4">
+            <div>
+              <h2 className="text-sm font-semibold text-gray-800">Medidas verificadas</h2>
+              <p className="text-xs text-gray-500 mt-0.5">
+                Digite o nome exato de uma medida do Power BI — o sistema testa via DAX e adiciona ao schema automaticamente.
+              </p>
+            </div>
+
+            {/* Input + botão verificar */}
+            <div className="flex gap-2">
+              <input
+                value={measureInput}
+                onChange={e => setMeasureInput(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && (e.preventDefault(), verifyMeasure())}
+                className="input flex-1 font-mono text-sm"
+                placeholder="Ex: Total Ligações"
+              />
+              <button type="button" onClick={verifyMeasure} disabled={verifying || !measureInput.trim()}
+                className="btn-primary flex items-center gap-1.5 disabled:opacity-50 whitespace-nowrap">
+                {verifying ? <Loader2 className="w-4 h-4 animate-spin" /> : <Zap className="w-4 h-4" />}
+                {verifying ? 'Testando...' : 'Verificar e adicionar'}
+              </button>
+            </div>
+
+            {/* Resultado da verificação */}
+            {verifyResult && (
+              <p className={`text-xs px-3 py-2 rounded-lg flex items-center gap-1.5 ${
+                verifyResult.exists
+                  ? 'bg-green-50 border border-green-200 text-green-800'
+                  : 'bg-red-50 border border-red-200 text-red-700'
+              }`}>
+                {verifyResult.exists
+                  ? <><CheckCircle2 className="w-3.5 h-3.5 flex-shrink-0" /> <strong>[{verifyResult.measure}]</strong> existe no dataset e foi adicionada ao schema.</>
+                  : <><XCircle className="w-3.5 h-3.5 flex-shrink-0" /> Medida não encontrada: {verifyResult.error}</>}
+              </p>
+            )}
+
+            {/* Lista de medidas no schema */}
+            {measures.length > 0 && (
+              <div>
+                <p className="text-xs text-gray-500 mb-2">{measures.length} medida(s) no schema atual:</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {measures.map(m => (
+                    <span key={m} className="inline-flex items-center gap-1 text-xs bg-blue-50 border border-blue-200 text-blue-800 px-2 py-1 rounded-lg font-mono">
+                      [{m}]
+                      <button type="button" onClick={() => removeMeasure(m)}
+                        className="text-blue-400 hover:text-red-500 ml-0.5">
+                        <XCircle className="w-3 h-3" />
+                      </button>
+                    </span>
+                  ))}
+                </div>
+                <p className="text-xs text-gray-400 mt-2">Clique em ✕ para remover. Clique em <strong>Atualizar conexão</strong> para salvar as alterações.</p>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Resultado do teste */}
         {testResult && (

@@ -164,8 +164,73 @@ def explore_tables_columns(
 
 
 def discover_schema(dataset_id: str, token: str, workspace_id: Optional[str] = None) -> dict:
-    """Alias mantido para compatibilidade — INFO functions não suportadas neste modelo."""
-    return {"schema_text": "", "tables": [], "error": "INFO functions indisponíveis. Use explore_tables_columns()."}
+    """
+    Descobre schema via DAX INFO functions simples (sem SELECTCOLUMNS/FILTER).
+    Retorna { "schema_text": str, "tables": list[str], "error": str|None }
+    """
+    # ── Tabelas ───────────────────────────────────────────────────────────────
+    t_res = execute_dax_query(dataset_id, "EVALUATE INFO.TABLES()", token, workspace_id)
+    if t_res.get("error"):
+        return {"schema_text": "", "tables": [], "error": f"INFO functions indisponíveis: {t_res['error']}"}
+
+    tables: dict[int, str] = {}
+    for row in t_res["rows"]:
+        clean = {_clean_key(k): v for k, v in row.items()}
+        tid, tname = clean.get("ID"), clean.get("Name")
+        hidden = clean.get("IsHidden", False)
+        if tid is not None and tname and not hidden:
+            tables[tid] = tname
+
+    # ── Colunas ───────────────────────────────────────────────────────────────
+    c_res = execute_dax_query(dataset_id, "EVALUATE INFO.COLUMNS()", token, workspace_id)
+    table_columns: dict[str, list[str]] = {}
+    for row in c_res.get("rows", []):
+        clean = {_clean_key(k): v for k, v in row.items()}
+        tid    = clean.get("TableID")
+        col    = clean.get("ExplicitName") or clean.get("Name")
+        hidden = clean.get("IsHidden", False)
+        ctype  = clean.get("Type")          # 3 = RowNumber (interno)
+        state  = clean.get("State", 1)      # 1 = Ready
+        if not col or hidden or ctype == 3 or state != 1:
+            continue
+        tname = tables.get(tid)
+        if tname:
+            table_columns.setdefault(tname, []).append(col)
+
+    # ── Medidas ───────────────────────────────────────────────────────────────
+    m_res = execute_dax_query(dataset_id, "EVALUATE INFO.MEASURES()", token, workspace_id)
+    table_measures: dict[str, list[str]] = {}
+    for row in m_res.get("rows", []):
+        clean   = {_clean_key(k): v for k, v in row.items()}
+        tid     = clean.get("TableID")
+        measure = clean.get("Name")
+        if not measure:
+            continue
+        tname = tables.get(tid)
+        if tname:
+            table_measures.setdefault(tname, []).append(measure)
+
+    # ── Formata schema ────────────────────────────────────────────────────────
+    lines: list[str] = []
+    SKIP = {"DateTableTemplate", "LocalDateTable"}
+    all_names = sorted(set(list(table_columns) + list(table_measures)))
+    for tname in all_names:
+        if any(tname.startswith(s) for s in SKIP):
+            continue
+        lines.append(f"Tabela: {tname}")
+        cols = table_columns.get(tname, [])
+        if cols:
+            lines.append(f"  Colunas: {', '.join(cols)}")
+        measures = table_measures.get(tname, [])
+        if measures:
+            lines.append(f"  Medidas: {', '.join(f'[{m}]' for m in measures)}")
+        lines.append("")
+
+    return {
+        "schema_text": "\n".join(lines).strip(),
+        "tables": list(tables.values()),
+        "error": None,
+    }
 
 
 # ── Fabric API — definição completa do modelo semântico ───────────────────────
