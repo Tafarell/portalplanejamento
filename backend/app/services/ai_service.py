@@ -37,14 +37,65 @@ Qualquer tabela com acento ou caractere especial DEVE ser envolta em aspas simpl
 - Correto: 'dHorarioIntervalo'[Intervalo de Hora]
 - ERRADO: dCalendário[Date] sem aspas simples causa erro de sintaxe
 
+## ALIASES E NOMES DE CONTRATOS:
+
+Use sempre o nome exato do campo secao_resumido ao filtrar. Aliases aceitos:
+- "MDHC" ou "Disque 100" ou "Ministerio dos Direitos Humanos" -> filtrar por dGrupoEmpresa[secao_resumido] = "MDHC"
+- "AMBAR" ou "Amazonas Energia" ou "Ambar AM" -> filtrar por dGrupoEmpresa[secao_resumido] = "AMBAR (AM)"
+- "Ligue 180" ou "SPM" ou "180" -> filtrar por dGrupoEmpresa[secao_resumido] = "LIGUE 180"
+- "PMSP" ou "Prefeitura SP" ou "Prefeitura de Sao Paulo" -> filtrar por dGrupoEmpresa[secao_resumido] = "PMSP"
+- "Defensoria" -> filtrar por dGrupoEmpresa[secao_resumido] = "DEFENSORIA"
+- "SEFAZ" ou "Fazenda" -> filtrar por dGrupoEmpresa[secao_resumido] = "SEFAZ"
+- "MEC" -> filtrar por dGrupoEmpresa[secao_resumido] = "MEC" ou "MEC - SP"
+- "Embasa" -> filtrar por dGrupoEmpresa[secao_resumido] = "EMBASA"
+- "CDHU" -> filtrar por dGrupoEmpresa[secao_resumido] = "CDHU"
+
 ## REGRA DE FILTRO POR CONTRATO — OBRIGATÓRIO:
 
 A dimensão dGrupoEmpresa identifica o contrato/servico. Coluna-chave:
-- secao_resumido -> nome do contrato (ex: "Ligue 180", "Ouvidoria", "Saude da Mulher")
+- secao_resumido -> nome do contrato
 
-- Se o usuario mencionar um contrato/servico especifico (ex: "Ligue 180", "Ouvidoria"), filtre por dGrupoEmpresa[secao_resumido] = "NomeExato".
+- Se o usuario mencionar um contrato/servico especifico, filtre por dGrupoEmpresa[secao_resumido] = "NomeExato".
 - Se o usuario NAO mencionar contrato especifico, NAO adicione filtro de contrato — retorne dados de todos os contratos.
 - Administrador pode ver todos os contratos sem restricao.
+
+## DICIONARIO DE MEDIDAS — CONTEXTO DE NEGOCIO:
+
+Tabelas fato do modelo:
+- fBaseGeral: dados brutos de bilhetagem (operadora telefonica) e URA. Base para volumetria de entrada.
+- fBaseDac: chamadas que chegaram na fila humana (DAC). Base para TMA, TME, atendidas, abandonadas.
+- fBEventosAgentes: pausas e eventos dos agentes. Base para TMP (Tempo Medio de Pausa).
+- fBGeralAbsenteismo: carga horaria agendada vs permanencia logada. Base para absenteismo.
+
+Medidas principais e suas definicoes:
+- [Chamadas Bilhetadas]: demanda bruta recebida pela operadora antes de qualquer roteamento interno
+- [Recebidas na URA]: chamadas que efetivamente entraram no atendimento eletronico (URA)
+- [Retida na URA]: demanda resolvida 100% eletronicamente sem chegar ao humano
+- [Chamadas Entrantes]: = Atendidas + Abandonadas (chegaram na fila humana)
+- [Chamadas Atendidas]: atendidas com sucesso pelo operador humano
+- [Chamadas Abandonadas]: cliente desistiu enquanto aguardava na fila humana
+- [Chamadas Desistente/Bloqueadas]: desligou logo apos a URA antes de entrar na fila
+- [Tempo Medio Atendidas] ou TMA: AHT em segundos. Principal componente do custo.
+- [Tempo Medio Espera] ou TME: ASA em segundos. Tempo medio do cliente na fila humana.
+- [Tempo Medio de Pausa] ou TMP: tempo medio de pausa dos agentes
+- [Absenteismo]: 1 - (permanencia / carga horaria). Alta = equipe ausente.
+- [Nivel de Servico]: % chamadas atendidas dentro do tempo limite (meta SLA)
+- [Nivel de Abandono]: % chamadas abandonadas apos o tempo limite (meta IAB)
+- [Rechamadas]: clientes que ligaram mais de 1x no mesmo dia (baixo FCR - First Call Resolution)
+- [% Rechamadas]: rechamadas / bilhetadas. Mede inversamente a resolutividade.
+- [Score]: pontuacao 0-1000 combinando NS, Abandono, Absenteismo e TMP (pesos 25% cada)
+
+Logica de diagnostico em cascata (use quando perguntar sobre causa de problemas):
+1. Abandono DAC subiu? -> Verificar TME alto
+2. TME subiu? -> Verificar absenteismo ou pico de trafego
+3. Escala estava cheia? -> Verificar TMA. TMA longo reduz vazao e infla TME.
+4. TMA e escala normais? -> Verificar Chamadas Bilhetadas para pico atipico
+
+Alertas criticos (desvio > 15% da media historica = sinal vermelho):
+- Abandono DAC > 15% da media historica = calamidade operacional
+- TMA > 15% = custo elevado, revisar script
+- Absenteismo > meta = falta de escala
+- Rechamadas altas = problema de resolutividade (FCR baixo)
 
 ALLOWED_CONTRACTS_PLACEHOLDER
 
