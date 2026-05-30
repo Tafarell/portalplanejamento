@@ -10,7 +10,7 @@ from app.models.user import User, UserRole
 from app.models.pbi_connection import PBIConnection
 from app.models.contrato import Contrato
 from app.utils.security import get_current_user
-from app.services.ai_service import chat_with_ai, chat_with_powerbi
+from app.services.ai_service import chat_with_ai, chat_with_powerbi, chat_with_multi_powerbi
 
 router = APIRouter(prefix="/api/ai", tags=["Assistente IA"])
 
@@ -96,29 +96,51 @@ def chat(request: ChatRequest, db: Session = Depends(get_db),
         # ── Permissões por contrato ───────────────────────────────────────────
         allowed_contracts = _get_allowed_contracts(db, current_user)
 
-        # Se usuário sem permissões de contrato, bloqueia
         if allowed_contracts is not None and len(allowed_contracts) == 0:
             return ChatResponse(
-                answer="⚠️ Você não possui permissão para acessar nenhum contrato. Entre em contato com o administrador para solicitar acesso.",
+                answer="⚠️ Você não possui permissão para acessar nenhum contrato. Entre em contato com o administrador.",
                 pbi_active=True,
             )
 
         try:
-            schema = "\n\n".join(filter(None, [
-                pbi_conn.schema_context,
-                getattr(pbi_conn, 'measures_context', None),
-            ]))
-            result = chat_with_powerbi(
-                question=request.question,
-                dataset_id=pbi_conn.dataset_id,
-                workspace_id=pbi_conn.workspace_id,
-                tenant_id=pbi_conn.tenant_id,
-                client_id=pbi_conn.client_id,
-                client_secret=pbi_conn.client_secret,
-                schema_context=schema,
-                allowed_contracts=allowed_contracts,
-                conversation_history=history,
-            )
+            if len(all_conns) > 1:
+                # Múltiplas conexões: IA escolhe qual usar
+                conns_data = [
+                    {
+                        "id": c.id, "name": c.name,
+                        "description": c.description or "",
+                        "dataset_id": c.dataset_id,
+                        "workspace_id": c.workspace_id,
+                        "tenant_id": c.tenant_id,
+                        "client_id": c.client_id,
+                        "client_secret": c.client_secret,
+                        "schema_context": c.schema_context,
+                        "measures_context": getattr(c, 'measures_context', None),
+                    }
+                    for c in all_conns
+                ]
+                result = chat_with_multi_powerbi(
+                    question=request.question,
+                    connections=conns_data,
+                    allowed_contracts=allowed_contracts,
+                    conversation_history=history,
+                )
+            else:
+                schema = "\n\n".join(filter(None, [
+                    pbi_conn.schema_context,
+                    getattr(pbi_conn, 'measures_context', None),
+                ]))
+                result = chat_with_powerbi(
+                    question=request.question,
+                    dataset_id=pbi_conn.dataset_id,
+                    workspace_id=pbi_conn.workspace_id,
+                    tenant_id=pbi_conn.tenant_id,
+                    client_id=pbi_conn.client_id,
+                    client_secret=pbi_conn.client_secret,
+                    schema_context=schema,
+                    allowed_contracts=allowed_contracts,
+                    conversation_history=history,
+                )
         except Exception as e:
             import traceback
             print("ERRO AI CHAT:", traceback.format_exc())
