@@ -397,13 +397,20 @@ def chat_with_powerbi(
                 "content": formatted or "",
             })
 
+    # Fallback: força resposta textual sem tools
+    messages.append({
+        "role": "user",
+        "content": "Com base nos dados acima, responda a pergunta original de forma completa e analitica."
+    })
     response = client.chat.completions.create(
         model=settings.OPENAI_MODEL,
         messages=messages,
+        tool_choice="none",  # Proibe tool calls no fallback
         temperature=0.1,
         max_tokens=4000,
     )
+    answer = response.choices[0].message.content or "Não foi possível gerar uma resposta."
     return {
-        "answer": response.choices[0].message.content or "",
+        "answer": answer,
         "pbi_queries": pbi_queries,
     }
