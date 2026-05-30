@@ -187,7 +187,9 @@ def chat_with_powerbi(
 
     from datetime import date
     today = date.today()
-    schema = schema_context or "Schema nao fornecido."
+    # Limita schema para evitar overflow de contexto do modelo
+    raw_schema = schema_context or "Schema nao fornecido."
+    schema = raw_schema[:3000] + ("..." if len(raw_schema) > 3000 else "")
 
     date_info = (
         "Hoje e " + today.isoformat() +
