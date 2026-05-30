@@ -255,13 +255,13 @@ export default function AIChat({ dashboardId, dashboardName }) {
         setConnections(data || [])
         // Auto-seleciona se houver apenas uma conexão
         if (data?.length === 1) setSelectedConn(data[0])
-        setMessages([{
-          role: 'assistant',
-          content: dashboardName
-            ? `Olá! Estou pronto para analisar o dashboard **${dashboardName}**.\n\nFaça sua pergunta.`
-            : active ? WELCOME_PBI : WELCOME_DEFAULT,
-          pbi_queries: [],
-        }])
+        const numConns = data?.length || 0
+        const welcomeMsg = dashboardName
+          ? `Olá! Estou pronto para analisar o dashboard **${dashboardName}**.\n\nFaça sua pergunta.`
+          : active && numConns > 1
+            ? `Olá! Tenho **${numConns} datasets** conectados.\n\n👆 **Selecione a fonte de dados** no seletor acima antes de fazer perguntas.`
+            : active ? WELCOME_PBI : WELCOME_DEFAULT
+        setMessages([{ role: 'assistant', content: welcomeMsg, pbi_queries: [] }])
       })
       .catch(() => {
         setPbiActive(false)
@@ -274,6 +274,7 @@ export default function AIChat({ dashboardId, dashboardName }) {
   const send = async (text) => {
     const question = (text || input).trim()
     if (!question || loading) return
+    if (pbiActive && connections.length > 1 && !selectedConn) return
 
     setInput('')
     setMessages(prev => [...prev, { role: 'user', content: question, pbi_queries: [] }])
@@ -406,7 +407,12 @@ export default function AIChat({ dashboardId, dashboardName }) {
         <div className="max-w-3xl mx-auto flex gap-2.5">
           <input ref={inputRef} value={input} onChange={e => setInput(e.target.value)}
             onKeyDown={e => e.key === 'Enter' && !e.shiftKey && send()}
-            placeholder={pbiActive ? 'Pergunte ou peça um gráfico dos seus dados...' : 'Faça uma pergunta sobre seus dados...'}
+            placeholder={
+              pbiActive && connections.length > 1 && !selectedConn
+                ? 'Selecione uma fonte acima para começar...'
+                : pbiActive ? 'Pergunte ou peça um gráfico dos seus dados...'
+                : 'Faça uma pergunta sobre seus dados...'
+            }
             disabled={loading}
             className="flex-1 px-4 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-gray-50 placeholder-gray-400 disabled:opacity-60 transition"
           />
