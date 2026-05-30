@@ -274,8 +274,7 @@ export default function AIChat({ dashboardId, dashboardName }) {
   const send = async (text) => {
     const question = (text || input).trim()
     if (!question || loading) return
-    // Bloqueia envio se tem múltiplas conexões e nenhuma selecionada
-    if (pbiActive && connections.length > 1 && !selectedConn) return
+
     setInput('')
     setMessages(prev => [...prev, { role: 'user', content: question, pbi_queries: [] }])
     setLoading(true)
@@ -407,12 +406,7 @@ export default function AIChat({ dashboardId, dashboardName }) {
         <div className="max-w-3xl mx-auto flex gap-2.5">
           <input ref={inputRef} value={input} onChange={e => setInput(e.target.value)}
             onKeyDown={e => e.key === 'Enter' && !e.shiftKey && send()}
-            placeholder={
-              pbiActive && connections.length > 1 && !selectedConn
-                ? 'Selecione um dataset acima para começar...'
-                : pbiActive ? 'Pergunte ou peça um gráfico dos seus dados...'
-                : 'Faça uma pergunta sobre seus dados...'
-            }
+            placeholder={pbiActive ? 'Pergunte ou peça um gráfico dos seus dados...' : 'Faça uma pergunta sobre seus dados...'}
             disabled={loading}
             className="flex-1 px-4 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-gray-50 placeholder-gray-400 disabled:opacity-60 transition"
           />
