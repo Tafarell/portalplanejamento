@@ -166,13 +166,18 @@ async def upload_cover(dashboard_id: int, file: UploadFile = File(...),
     dashboard = db.query(Dashboard).filter(Dashboard.id == dashboard_id).first()
     if not dashboard:
         raise HTTPException(status_code=404, detail="Dashboard não encontrado")
-    ext = file.filename.rsplit(".", 1)[-1]
-    filename = f"dashboard_{dashboard_id}.{ext}"
-    file_bytes = await file.read()
-    public_url = storage_service.upload_cover(file_bytes, filename)
-    dashboard.cover_image_url = public_url
-    db.commit()
-    return {"cover_image_url": public_url}
+    try:
+        ext = file.filename.rsplit(".", 1)[-1] if "." in file.filename else "jpg"
+        filename = f"dashboard_{dashboard_id}.{ext}"
+        file_bytes = await file.read()
+        public_url = storage_service.upload_cover(file_bytes, filename)
+        dashboard.cover_image_url = public_url
+        db.commit()
+        return {"cover_image_url": public_url}
+    except Exception as e:
+        import traceback
+        print("ERRO upload cover:", traceback.format_exc())
+        raise HTTPException(status_code=500, detail=f"Erro ao fazer upload: {str(e)}")
 
 @router.post("/{dashboard_id}/parquet")
 async def upload_parquet(dashboard_id: int, file: UploadFile = File(...),
@@ -180,8 +185,3 @@ async def upload_parquet(dashboard_id: int, file: UploadFile = File(...),
     dashboard = db.query(Dashboard).filter(Dashboard.id == dashboard_id).first()
     if not dashboard:
         raise HTTPException(status_code=404, detail="Dashboard não encontrado")
-    file_bytes = await file.read()
-    storage_path = storage_service.upload_parquet(file_bytes, dashboard_id)
-    dashboard.parquet_file = storage_path
-    db.commit()
-    return {"message": "Arquivo Parquet enviado com sucesso", "parquet_file": storage_path}

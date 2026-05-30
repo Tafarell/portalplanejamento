@@ -88,8 +88,16 @@ export default function AdminDashboards() {
   const toggle = async id => { await api.patch(`/dashboards/${id}/toggle`); fetchAll() }
 
   const uploadCover = async (id, file) => {
-    const fd = new FormData(); fd.append('file', file)
-    await api.post(`/dashboards/${id}/cover`, fd); fetchAll()
+    if (!file) return
+    const fd = new FormData()
+    fd.append('file', file)
+    try {
+      // NAO definir Content-Type manualmente — o browser define com boundary correto
+      await api.post(`/dashboards/${id}/cover`, fd)
+      fetchAll()
+    } catch (e) {
+      alert('Erro ao enviar imagem: ' + (e.response?.data?.detail || e.message))
+    }
   }
 
   // Contratos filtrados pelo grupo selecionado no form

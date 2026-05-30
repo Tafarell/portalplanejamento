@@ -341,22 +341,24 @@ export default function AIChat({ dashboardId, dashboardName }) {
         )}
       </div>
 
-      <div className="flex-1 overflow-y-auto px-4 py-6 space-y-5">
-        <div className="max-w-3xl mx-auto w-full space-y-5">
+      <div className="flex-1 overflow-y-auto px-4 py-5 space-y-4">
+        <div className="max-w-4xl mx-auto w-full space-y-4">
           {messages.map((msg, i) => {
             const { text, chart } = parseChartData(msg.content)
             return (
               <div key={i} className={`flex gap-3 ${msg.role === 'user' ? 'flex-row-reverse' : ''}`}>
-                <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5 shadow-sm ${msg.role === 'assistant' ? 'bg-gradient-to-br from-blue-500 to-indigo-600' : 'bg-gradient-to-br from-gray-600 to-gray-800'}`}>
-                  {msg.role === 'assistant' ? <Sparkles className="w-3.5 h-3.5 text-white" /> : <User className="w-3.5 h-3.5 text-white" />}
+                <div className={`w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 mt-1 ${msg.role === 'assistant' ? 'bg-indigo-600' : 'bg-gray-700'}`}>
+                  {msg.role === 'assistant' ? <Sparkles className="w-3 h-3 text-white" /> : <User className="w-3 h-3 text-white" />}
                 </div>
-                <div className={`max-w-[80%] ${msg.role === 'user' ? '' : 'flex-1'}`}>
+                <div className={msg.role === 'user' ? 'max-w-[75%]' : 'flex-1 min-w-0'}>
                   <div className={`rounded-2xl px-4 py-3 text-sm shadow-sm ${msg.role === 'assistant' ? 'bg-white text-gray-800 border border-gray-100 rounded-tl-sm' : 'bg-blue-600 text-white rounded-tr-sm'}`}>
                     {msg.role === 'assistant' ? (
                       <>
-                        <ReactMarkdown remarkPlugins={[remarkGfm]} className="prose prose-sm max-w-none prose-p:my-1 prose-headings:my-2 prose-li:my-0.5 prose-table:text-xs prose-th:bg-gray-50 prose-td:border prose-th:border">
-                          {text}
-                        </ReactMarkdown>
+                        <div className="overflow-x-auto">
+                          <ReactMarkdown remarkPlugins={[remarkGfm]} className="prose prose-sm max-w-none prose-p:my-1 prose-headings:my-2 prose-li:my-0.5 prose-table:text-xs prose-table:w-full prose-th:bg-indigo-50 prose-th:text-indigo-800 prose-th:font-semibold prose-th:px-2 prose-th:py-1.5 prose-th:border prose-th:border-indigo-200 prose-td:px-2 prose-td:py-1 prose-td:border prose-td:border-gray-200 prose-tr:even:bg-gray-50">
+                            {text}
+                          </ReactMarkdown>
+                        </div>
                         <ChartWidget chart={chart} />
                       </>
                     ) : (

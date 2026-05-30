@@ -1,4 +1,4 @@
-import { ExternalLink, BarChart3, Monitor, FileText, Tag } from 'lucide-react'
+import { BarChart3, Monitor, FileText, Tag, Zap } from 'lucide-react'
 import clsx from 'clsx'
 
 const categoryConfig = {
@@ -8,10 +8,34 @@ const categoryConfig = {
   other: { label: 'Outro', color: 'bg-gray-100 text-gray-700', icon: Tag },
 }
 
+function isPowerBIUrl(url) {
+  if (!url) return false
+  try {
+    const h = new URL(url).hostname
+    return h.includes('powerbi.com') || h.includes('fabric.microsoft.com')
+  } catch { return false }
+}
+
+function PBICover() {
+  return (
+    <div className="w-full h-full flex flex-col items-center justify-center gap-3"
+      style={{ background: 'linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%)' }}>
+      {/* Power BI logo SVG */}
+      <svg width="52" height="52" viewBox="0 0 48 48" fill="none">
+        <rect x="4" y="10" width="10" height="28" rx="2" fill="#F2C811" opacity="0.9"/>
+        <rect x="18" y="6" width="10" height="32" rx="2" fill="#F2C811"/>
+        <rect x="32" y="14" width="10" height="24" rx="2" fill="#F2C811" opacity="0.7"/>
+      </svg>
+      <span className="text-xs font-semibold tracking-widest text-yellow-300/80 uppercase">Power BI</span>
+    </div>
+  )
+}
+
 export default function DashboardCard({ dashboard, onClick }) {
   const categorySlug = dashboard.category?.toLowerCase()
   const cat = categoryConfig[categorySlug] || categoryConfig.other
   const Icon = cat.icon
+  const isPBI = isPowerBIUrl(dashboard.embed_url)
 
   return (
     <div onClick={onClick}
@@ -21,6 +45,8 @@ export default function DashboardCard({ dashboard, onClick }) {
         {dashboard.cover_image_url ? (
           <img src={dashboard.cover_image_url} alt={dashboard.name}
             className="w-full h-full object-cover" />
+        ) : isPBI ? (
+          <PBICover />
         ) : (
           <div className="w-full h-full flex items-center justify-center">
             <Icon className="w-16 h-16 text-white/20" />
@@ -28,11 +54,13 @@ export default function DashboardCard({ dashboard, onClick }) {
         )}
         <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
 
-        <div className="absolute bottom-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity">
-          <div className="w-8 h-8 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center">
-            <ExternalLink className="w-4 h-4 text-white" />
+        {isPBI && !dashboard.cover_image_url && (
+          <div className="absolute top-2 right-2">
+            <span className="flex items-center gap-1 text-xs font-medium bg-yellow-400/20 text-yellow-300 border border-yellow-400/30 px-2 py-0.5 rounded-full backdrop-blur-sm">
+              <Zap className="w-3 h-3" /> Live
+            </span>
           </div>
-        </div>
+        )}
       </div>
 
       {/* Content */}

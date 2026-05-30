@@ -35,8 +35,10 @@ function isExternalBlocked(url) {
   if (!url) return false
   try {
     const parsed = new URL(url)
-    // HTTP dentro de HTTPS é bloqueado pelo browser
+    // HTTP dentro de HTTPS é bloqueado
     if (window.location.protocol === 'https:' && parsed.protocol === 'http:') return true
+    // Qualquer URL que não seja Power BI é tratada como app externo
+    if (!parsed.hostname.includes('powerbi.com') && !parsed.hostname.includes('app.fabric.microsoft.com')) return true
   } catch {}
   return false
 }
@@ -114,10 +116,7 @@ export default function DashboardView() {
                 <span className="hidden sm:inline">Assistente IA</span>
               </button>
             )}
-            <a href={sourceUrl || embedUrl} target="_blank" rel="noopener noreferrer"
-              className="p-1.5 text-gray-400 hover:text-gray-700 rounded-lg hover:bg-gray-100">
-              <ExternalLink className="w-5 h-5" />
-            </a>
+
           </div>
         </div>
 
