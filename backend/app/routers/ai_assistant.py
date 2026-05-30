@@ -87,8 +87,8 @@ def chat(request: ChatRequest, db: Session = Depends(get_db),
             )
 
         try:
-            if len(all_conns) > 1:
-                # Múltiplas conexões: IA escolhe qual usar
+            if len(all_conns) > 1 and not request.pbi_connection_id:
+                # Múltiplas conexões sem seleção: IA escolhe
                 conns_data = [
                     {
                         "id": c.id, "name": c.name,
