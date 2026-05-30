@@ -559,16 +559,15 @@ def chat_with_multi_powerbi(
                 "content": formatted or "",
             })
 
-    # Fallback
-    messages.append({"role": "user", "content": "Com base nos dados acima, responda a pergunta original de forma completa."})
+    # Fallback sem tools
+    messages.append({"role": "user", "content": "Com base nos dados acima, responda a pergunta original de forma completa e analitica."})
     response = client.chat.completions.create(
         model=settings.OPENAI_MODEL,
         messages=messages,
-        tool_choice="none",
-        temperature=0.1,
+        temperature=0.2,
         max_tokens=4000,
     )
     return {
-        "answer": response.choices[0].message.content or "Não foi possível gerar resposta.",
+        "answer": response.choices[0].message.content or "Os dados foram consultados. Faça uma pergunta mais específica.",
         "pbi_queries": pbi_queries,
     }
