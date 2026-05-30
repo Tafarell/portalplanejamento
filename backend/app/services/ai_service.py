@@ -507,15 +507,22 @@ def chat_with_multi_powerbi(
 
     pbi_queries: list[str] = []
 
-    for _ in range(max_tool_iterations):
+    # Se nao ha tools disponiveis, responde direto
+    if not tools:
         response = client.chat.completions.create(
             model=settings.OPENAI_MODEL,
             messages=messages,
-            tools=tools,
-            tool_choice="auto",
-            temperature=0.1,
+            temperature=0.2,
             max_tokens=4000,
         )
+        return {"answer": response.choices[0].message.content or "Nenhuma conexao disponivel.", "pbi_queries": []}
+
+    for _ in range(max_tool_iterations):
+        kwargs = {"model": settings.OPENAI_MODEL, "messages": messages, "temperature": 0.1, "max_tokens": 4000}
+        if tools:
+            kwargs["tools"] = tools
+            kwargs["tool_choice"] = "auto"
+        response = client.chat.completions.create(**kwargs)
         msg = response.choices[0].message
         if not msg.tool_calls:
             return {"answer": msg.content or "", "pbi_queries": pbi_queries}
