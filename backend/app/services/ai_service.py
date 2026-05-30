@@ -414,3 +414,161 @@ def chat_with_powerbi(
         "answer": answer,
         "pbi_queries": pbi_queries,
     }
+
+
+def chat_with_multi_powerbi(
+    question: str,
+    connections: list,           # [{"id": 1, "name": "...", "description": "...", ...}, ...]
+    allowed_contracts: list = None,
+    conversation_history: list = None,
+    max_tool_iterations: int = 6,
+) -> dict:
+    """
+    Chat com múltiplas conexões Power BI.
+    Cria um tool por conexão para que a IA escolha a fonte certa.
+    """
+    from app.services.powerbi_service import (
+        get_pbi_token, execute_dax_query, format_rows_for_llm
+    )
+
+    from datetime import date
+    today = date.today()
+
+    # Obtém tokens para todas as conexões
+    conn_map = {}
+    tools = []
+    schema_parts = []
+
+    for conn in connections:
+        try:
+            token = get_pbi_token(conn["tenant_id"], conn["client_id"], conn["client_secret"])
+            conn_map[str(conn["id"])] = {"token": token, "conn": conn}
+
+            tool_name = f"query_pbi_{conn['id']}"
+            conn_label = conn.get("name", f"Conexão {conn['id']}")
+            conn_desc = conn.get("description") or conn_label
+
+            tools.append({
+                "type": "function",
+                "function": {
+                    "name": tool_name,
+                    "description": f"Executa DAX no dataset '{conn_label}' ({conn_desc}). Use para perguntas sobre {conn_desc}.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "dax_query": {
+                                "type": "string",
+                                "description": "Consulta DAX válida começando com EVALUATE."
+                            }
+                        },
+                        "required": ["dax_query"]
+                    }
+                }
+            })
+
+            schema = "\n\n".join(filter(None, [
+                conn.get("schema_context"),
+                conn.get("measures_context"),
+            ]))
+            if schema:
+                schema_parts.append(f"## Dataset: {conn_label}\n{schema}")
+        except Exception as e:
+            schema_parts.append(f"## Dataset: {conn.get('name', conn['id'])} — ERRO ao conectar: {e}")
+
+    combined_schema = "\n\n---\n\n".join(schema_parts) if schema_parts else "Schemas não disponíveis."
+
+    # Monta system prompt
+    if allowed_contracts is None:
+        contracts_section = ""
+    elif len(allowed_contracts) == 0:
+        contracts_section = "## RESTRICAO: sem permissao para nenhum contrato."
+    else:
+        names = ", ".join(f'"{c}"' for c in allowed_contracts)
+        contracts_section = f"## CONTRATOS PERMITIDOS: {names}"
+
+    date_info = (
+        "Hoje e " + today.isoformat() +
+        " (ano " + str(today.year) + ", mes " + str(today.month) + ", dia " + str(today.day) + ")."
+        " Ontem = TODAY() - 1."
+    )
+
+    system_content = (
+        PBI_SYSTEM_PROMPT
+        .replace("DATA_HOJE", date_info)
+        .replace("SCHEMA_DATASET", combined_schema)
+        .replace("ALLOWED_CONTRACTS_PLACEHOLDER", contracts_section)
+    )
+
+    messages = [{"role": "system", "content": system_content}]
+    if conversation_history:
+        for msg in conversation_history[-10:]:
+            messages.append({"role": msg["role"], "content": msg.get("content") or ""})
+    messages.append({"role": "user", "content": question})
+
+    pbi_queries: list[str] = []
+
+    for _ in range(max_tool_iterations):
+        response = client.chat.completions.create(
+            model=settings.OPENAI_MODEL,
+            messages=messages,
+            tools=tools,
+            tool_choice="auto",
+            temperature=0.1,
+            max_tokens=4000,
+        )
+        msg = response.choices[0].message
+        if not msg.tool_calls:
+            return {"answer": msg.content or "", "pbi_queries": pbi_queries}
+
+        msg_dict = {
+            "role": "assistant",
+            "content": msg.content or "",
+            "tool_calls": [
+                {"id": tc.id, "type": "function",
+                 "function": {"name": tc.function.name, "arguments": tc.function.arguments}}
+                for tc in msg.tool_calls
+            ]
+        }
+        messages.append(msg_dict)
+
+        for tool_call in msg.tool_calls:
+            fn_name = tool_call.function.name  # e.g. "query_pbi_1"
+            try:
+                args = json.loads(tool_call.function.arguments)
+                dax = args.get("dax_query", "")
+            except Exception:
+                dax = ""
+
+            pbi_queries.append(f"[{fn_name}] {dax}")
+
+            # Identifica a conexão pelo nome do tool
+            conn_id = fn_name.replace("query_pbi_", "")
+            conn_info = conn_map.get(conn_id)
+            if conn_info:
+                result = execute_dax_query(
+                    conn_info["conn"]["dataset_id"], dax,
+                    conn_info["token"], conn_info["conn"].get("workspace_id")
+                )
+                formatted = format_rows_for_llm(result)
+            else:
+                formatted = f"❌ Conexão '{conn_id}' não encontrada."
+
+            messages.append({
+                "role": "tool",
+                "tool_call_id": tool_call.id,
+                "content": formatted or "",
+            })
+
+    # Fallback
+    messages.append({"role": "user", "content": "Com base nos dados acima, responda a pergunta original de forma completa."})
+    response = client.chat.completions.create(
+        model=settings.OPENAI_MODEL,
+        messages=messages,
+        tool_choice="none",
+        temperature=0.1,
+        max_tokens=4000,
+    )
+    return {
+        "answer": response.choices[0].message.content or "Não foi possível gerar resposta.",
+        "pbi_queries": pbi_queries,
+    }
