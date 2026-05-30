@@ -274,6 +274,8 @@ export default function AIChat({ dashboardId, dashboardName }) {
   const send = async (text) => {
     const question = (text || input).trim()
     if (!question || loading) return
+    // Bloqueia envio se tem múltiplas conexões e nenhuma selecionada
+    if (pbiActive && connections.length > 1 && !selectedConn) return
     setInput('')
     setMessages(prev => [...prev, { role: 'user', content: question, pbi_queries: [] }])
     setLoading(true)
@@ -289,8 +291,11 @@ export default function AIChat({ dashboardId, dashboardName }) {
       if (data.needs_connection && data.connections?.length > 0) {
         setConnections(data.connections)
         setSelectedConn(null)
-        setMessages(prev => prev.slice(0, -1)) // remove user message
-        setInput(question) // devolve ao input
+        setMessages(prev => [...prev, {
+          role: 'assistant',
+          content: '👆 Selecione um dataset no topo do chat antes de fazer perguntas.',
+          pbi_queries: [],
+        }])
         return
       }
       setMessages(prev => [...prev, { role: 'assistant', content: data.answer, pbi_queries: data.pbi_queries || [] }])
