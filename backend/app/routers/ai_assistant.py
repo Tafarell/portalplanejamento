@@ -77,22 +77,6 @@ def chat(request: ChatRequest, db: Session = Depends(get_db),
     all_conns = db.query(PBIConnection).filter(PBIConnection.is_active == True).all()
 
     if all_conns:
-        # Seleciona a conexão certa
-        if request.pbi_connection_id:
-            pbi_conn = next((c for c in all_conns if c.id == request.pbi_connection_id), None)
-            if not pbi_conn:
-                raise HTTPException(status_code=404, detail="Conexão Power BI não encontrada")
-        elif len(all_conns) == 1:
-            pbi_conn = all_conns[0]
-        else:
-            # Múltiplas conexões, nenhuma selecionada → pede ao frontend
-            return ChatResponse(
-                answer="",
-                pbi_active=True,
-                needs_connection=True,
-                connections=[{"id": c.id, "name": c.name, "description": c.description or ""} for c in all_conns],
-            )
-
         # ── Permissões por contrato ───────────────────────────────────────────
         allowed_contracts = _get_allowed_contracts(db, current_user)
 
