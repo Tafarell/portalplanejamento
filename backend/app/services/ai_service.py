@@ -350,7 +350,8 @@ def chat_with_powerbi(
     messages = [{"role": "system", "content": system_content}]
     if conversation_history:
         for msg in conversation_history[-10:]:
-            messages.append({"role": msg["role"], "content": msg["content"]})
+            # Garante content nunca null (OpenRouter/Azure rejeita null)
+            messages.append({"role": msg["role"], "content": msg.get("content") or ""})
     messages.append({"role": "user", "content": question})
 
     pbi_queries: list[str] = []
@@ -393,7 +394,7 @@ def chat_with_powerbi(
             messages.append({
                 "role": "tool",
                 "tool_call_id": tool_call.id,
-                "content": formatted,
+                "content": formatted or "",
             })
 
     response = client.chat.completions.create(
