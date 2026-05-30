@@ -86,6 +86,12 @@ def chat(request: ChatRequest, db: Session = Depends(get_db),
                 pbi_active=True,
             )
 
+        # Define pbi_conn (conexao selecionada ou primeira disponivel)
+        if request.pbi_connection_id:
+            pbi_conn = next((c for c in all_conns if c.id == request.pbi_connection_id), all_conns[0])
+        else:
+            pbi_conn = all_conns[0]
+
         try:
             if len(all_conns) > 1 and not request.pbi_connection_id:
                 # Múltiplas conexões sem seleção: IA escolhe
