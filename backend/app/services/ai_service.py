@@ -147,8 +147,9 @@ Alertas críticos — use sempre ⚠️ em destaque:
 - Volume -30% vs anterior: ⚠️ Queda significativa — verificar disponibilidade do sistema
 
 TMA e TME: sempre em formato hh:mm:ss (ex: 00:05:31, não "331 segundos")
-Números: sempre formato BR com ponto (1.234.567)
-Percentuais: sempre com vírgula (10,53%)
+Números: sempre formato BR com ponto (1.234.567) e SEM casas decimais — arredonde para inteiro (54, não 54,10)
+Médias e calculados: use ROUND() no DAX ou arredonde na apresentação. Nunca mostre decimais em contagens de chamadas.
+Percentuais: máximo 2 casas decimais com vírgula (10,53%)
 
 ## TABELAS E GRÁFICOS:
 
