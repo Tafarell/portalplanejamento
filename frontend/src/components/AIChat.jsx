@@ -11,10 +11,10 @@ const QUICK_DEFAULT = [
   'Identifique anomalias nos dados',
 ]
 const QUICK_PBI = [
+  '📊 Briefing do mês atual',
   'Qual o total de chamadas de ontem?',
   'Gera um gráfico de chamadas por hora de ontem',
   'Compare o desempenho desta semana com a anterior',
-  'Mostre os principais KPIs do contrato',
 ]
 const WELCOME_DEFAULT = `Olá! Sou seu **Agente de IA**.\n\nPosso analisar seus dashboards e responder perguntas sobre:\n- Faturamento e métricas\n- Comparações de período\n- Principais indicadores\n- Análise de tendências`
 const WELCOME_PBI = `Olá! Sou seu **Agente de Análise de Dados** conectado ao Power BI em tempo real.\n\nPosso consultar indicadores, comparar períodos, identificar anomalias e **gerar gráficos** automaticamente.\n\nFaça qualquer pergunta sobre seus dados!`
@@ -297,7 +297,11 @@ export default function AIChat({ dashboardId, dashboardName }) {
   }
 
   const send = async (text) => {
-    const question = (text || input).trim()
+    let question = (text || input).trim()
+    // Substitui o botão de briefing pela pergunta completa
+    if (question === '📊 Briefing do mês atual') {
+      question = 'Faça um briefing do mês atual: total de chamadas bilhetadas, chamadas atendidas, % abandono e TMA. Compare com o mês anterior. Destaque anomalias.'
+    }
     if (!question || loading) return
     if (pbiActive && connections.length > 1 && !selectedConn) return
 
