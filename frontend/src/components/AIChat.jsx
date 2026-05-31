@@ -392,8 +392,6 @@ export default function AIChat({ dashboardId, dashboardName }) {
                 setSelectedConn(c)
                 // Carrega histórico da fonte
                 api.get(`/ai/history?connection_id=${c.id}&limit=5`).then(r => setHistory(r.data || [])).catch(() => {})
-                // Auto-briefing: dispara analise proativa ao selecionar fonte
-                setTimeout(() => triggerBriefing(c), 100)
               }}
                 className={`text-xs px-3 py-1.5 rounded-full font-medium transition-all ${
                   selectedConn?.id === c.id
