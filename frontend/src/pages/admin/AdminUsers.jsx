@@ -26,7 +26,10 @@ export default function AdminUsers() {
     const [u, g] = await Promise.all([api.get('/users'), api.get('/grupos')])
     setUsers(u.data); setGrupos(g.data)
   }
-  useEffect(() => { fetchAll() }, [])
+  useEffect(() => {
+    fetchAll()
+    api.get('/powerbi/connections').then(r => setPbiConns(r.data || [])).catch(() => {})
+  }, [])
 
   const openCreate = () => { setForm(EMPTY); setEditId(null); setModal(true) }
   const openEdit = async u => {
