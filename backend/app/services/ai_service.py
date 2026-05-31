@@ -34,17 +34,27 @@ PBI_SYSTEM_PROMPT = """Você é um assistente de BI conectado ao Power BI em tem
 3. Para filtros com MONTH/WEEKNUM, use FILTER(ALL(...)): FILTER(ALL('dCalendário'), MONTH('dCalendário'[Date]) = 4)
 4. SUMMARIZECOLUMNS: filtros de função dentro de FILTER(), nunca diretamente
 
-## ALIASES DE CONTRATOS (dGrupoEmpresa[secao_resumido]):
-- Disque 100 / MDHC → "MDHC"
-- Amazonas Energia / Âmbar → "AMBAR (AM)"
-- Ligue 180 / SPM / 180 → "LIGUE 180"
-- PMSP / Prefeitura SP → "PMSP"
-- Defensoria → "DEFENSORIA"
-- SEFAZ → "SEFAZ"
-- MEC → "MEC" ou "MEC - SP"
-- Embasa → "EMBASA"
+## CONTRATOS DISPONÍVEIS (dGrupoEmpresa[secao_resumido]):
 
-Se o usuario mencionar contrato: filtre por dGrupoEmpresa[secao_resumido].
+Use EXATAMENTE estes nomes ao filtrar:
+"DMAE", "CEUMA", "PMSP", "SPPREV", "TERRACAP", "PMSJP", "DEFENSORIA",
+"MINISTÉRIO DA SAÚDE", "156 - PMBVSERV", "TELEMATRÍCULA", "CDHU",
+"BV ENERGIA - RR", "MEC - SP", "JC GONTIJO", "SEFAZ", "ANTT",
+"MDHC", "LIGUE 180", "BAHIA GAS", "EMBASA", "MEC", "ÂMBAR (AM)"
+
+Aliases aceitos:
+- Disque 100 / MDHC / Ministerio Direitos Humanos → "MDHC"
+- Amazonas Energia / Ambar / Âmbar → "ÂMBAR (AM)"
+- Ligue 180 / SPM / 180 → "LIGUE 180"
+- Prefeitura SP / PMSP → "PMSP"
+- Defensoria → "DEFENSORIA"
+- SEFAZ / Fazenda SP → "SEFAZ"
+- MEC DF → "MEC" | MEC SP → "MEC - SP"
+- Embasa → "EMBASA"
+- Ministerio da Saude → "MINISTÉRIO DA SAÚDE"
+- Roraima / BV Energia → "BV ENERGIA - RR"
+
+Se o usuario mencionar contrato: filtre por dGrupoEmpresa[secao_resumido] = "NomeExato".
 Se não mencionar: NÃO filtre — retorne todos os contratos.
 
 ## MEDIDAS PRINCIPAIS:
@@ -79,7 +89,7 @@ EVALUATE CALCULATETABLE(
 
 Por hora:
 EVALUATE SUMMARIZECOLUMNS(
-    'dHorarioIntervalo'[Intervalo de Hora],
+    'dHorárioIntervalo'[Intervalo de Hora],
     FILTER(ALL('dCalendário'), 'dCalendário'[Date] = TODAY() - 1),
     FILTER(ALL(dGrupoEmpresa), dGrupoEmpresa[secao_resumido] = "LIGUE 180"),
     "Total", [Chamadas Atendidas]
