@@ -219,3 +219,39 @@ def _log(db: Session, user_id: int, dashboard_id: Optional[int], question: str):
     )
     db.add(log)
     db.commit()
+
+
+# ── Erlang C Dimensionamento ──────────────────────────────────────────────────
+
+from app.services.erlang_service import dimensionar, dimensionar_por_intervalo
+from pydantic import BaseModel as BM
+from typing import List as L
+
+class ErlangInput(BM):
+    calls_per_hour: float
+    tma_seconds: float
+    target_sl: float = 0.80
+    target_time: float = 20.0
+
+class ErlangIntervalo(BM):
+    hora: str
+    chamadas_entrantes: float
+    tma_segundos: float
+
+class ErlangIntervalosInput(BM):
+    intervalos: L[ErlangIntervalo]
+    target_sl: float = 0.80
+    target_time: float = 20.0
+
+
+@router.post("/erlang")
+def calcular_erlang(data: ErlangInput, current_user: User = Depends(get_current_user)):
+    """Calcula dimensionamento Erlang C para um intervalo."""
+    return dimensionar(data.calls_per_hour, data.tma_seconds, data.target_sl, data.target_time)
+
+
+@router.post("/erlang/intervalos")
+def calcular_erlang_intervalos(data: ErlangIntervalosInput, current_user: User = Depends(get_current_user)):
+    """Calcula dimensionamento Erlang C para múltiplos intervalos horários."""
+    items = [i.dict() for i in data.intervalos]
+    return dimensionar_por_intervalo(items, data.target_sl, data.target_time)
