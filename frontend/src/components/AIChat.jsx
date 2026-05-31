@@ -17,7 +17,7 @@ const QUICK_PBI = [
   'Mostre os principais KPIs do contrato',
 ]
 const WELCOME_DEFAULT = `Olá! Sou seu **Agente IA**.\n\nPosso analisar seus dashboards e responder perguntas sobre:\n- Faturamento e métricas\n- Comparações de período\n- Principais indicadores\n- Análise de tendências`
-const WELCOME_PBI = `Olá! Estou conectado ao seu **dataset Power BI** e posso consultar dados em tempo real.\n\nFaça qualquer pergunta sobre seus dados — posso executar consultas DAX e também **gerar gráficos** dos resultados!`
+const WELCOME_PBI = `Olá! Sou seu **Agente de Análise de Dados** conectado ao Power BI em tempo real.\n\nPosso consultar indicadores, comparar períodos, identificar anomalias e **gerar gráficos** automaticamente.\n\nFaça qualquer pergunta sobre seus dados!`
 
 function parseChartData(content) {
   if (!content) return { text: content, chart: null }
@@ -259,7 +259,7 @@ export default function AIChat({ dashboardId, dashboardName }) {
         const welcomeMsg = dashboardName
           ? `Olá! Estou pronto para analisar o dashboard **${dashboardName}**.\n\nFaça sua pergunta.`
           : active && numConns > 1
-            ? `Olá! Tenho **${numConns} datasets** conectados.\n\n👆 **Selecione a fonte de dados** no seletor acima antes de fazer perguntas.`
+            ? `Olá! Sou seu **Agente de Análise de Dados** com acesso a **${numConns} fontes** conectadas.\n\nPosso consultar indicadores, comparar períodos e **gerar gráficos** automaticamente.\n\n👆 **Para começar, selecione uma fonte de dados** no seletor acima.`
             : active ? WELCOME_PBI : WELCOME_DEFAULT
         setMessages([{ role: 'assistant', content: welcomeMsg, pbi_queries: [] }])
       })
