@@ -16,7 +16,7 @@ const QUICK_PBI = [
   'Compare o desempenho desta semana com a anterior',
   'Mostre os principais KPIs do contrato',
 ]
-const WELCOME_DEFAULT = `Olá! Sou seu **Assistente de IA**.\n\nPosso analisar seus dashboards e responder perguntas sobre:\n- Faturamento e métricas\n- Comparações de período\n- Principais indicadores\n- Análise de tendências`
+const WELCOME_DEFAULT = `Olá! Sou seu **Agente IA**.\n\nPosso analisar seus dashboards e responder perguntas sobre:\n- Faturamento e métricas\n- Comparações de período\n- Principais indicadores\n- Análise de tendências`
 const WELCOME_PBI = `Olá! Estou conectado ao seu **dataset Power BI** e posso consultar dados em tempo real.\n\nFaça qualquer pergunta sobre seus dados — posso executar consultas DAX e também **gerar gráficos** dos resultados!`
 
 function parseChartData(content) {
@@ -305,7 +305,7 @@ export default function AIChat({ dashboardId, dashboardName }) {
       const detail = err?.response?.data?.detail || ''
       let msg = '❌ Erro ao processar sua pergunta. Tente novamente.'
       if (status === 403) {
-        msg = '🔒 Você não tem permissão para usar o Assistente IA. Entre em contato com o administrador para solicitar acesso.'
+        msg = '🔒 Você não tem permissão para usar o Agente IA. Entre em contato com o administrador para solicitar acesso.'
       } else if (detail) {
         msg = '❌ ' + detail
       }
@@ -327,7 +327,7 @@ export default function AIChat({ dashboardId, dashboardName }) {
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <h1 className="text-base font-semibold text-gray-900">Assistente de IA</h1>
+              <h1 className="text-base font-semibold text-gray-900">Agente IA</h1>
               {pbiActive && (
                 <span className="flex items-center gap-1 text-xs font-medium text-indigo-700 bg-indigo-50 border border-indigo-200 px-2 py-0.5 rounded-full">
                   <Zap className="w-3 h-3" /> Power BI
@@ -347,24 +347,21 @@ export default function AIChat({ dashboardId, dashboardName }) {
       </div>
 
       {pbiActive && connections.length > 1 && (
-        <div className="border-b px-4 py-3 flex-shrink-0" style={{background: selectedConn ? '#eef2ff' : '#4338ca'}}>
-          <p className={`text-xs font-semibold mb-2 ${selectedConn ? 'text-indigo-700' : 'text-white'}`}>
-            {selectedConn ? `📊 Fonte: ${selectedConn.name}` : '📊 Selecione a fonte de dados:'}
-          </p>
-          <div className="flex gap-2 flex-wrap">
+        <div className="bg-gray-50 border-b border-gray-200 px-4 py-2 flex-shrink-0 flex items-center gap-3">
+          <span className="text-xs text-gray-500 font-medium whitespace-nowrap">Fonte:</span>
+          <div className="flex gap-1.5 flex-wrap">
             {connections.map(c => (
               <button key={c.id} onClick={() => setSelectedConn(c)}
-                className={`text-sm px-4 py-2 rounded-lg font-medium transition-all border-2 ${
+                className={`text-xs px-3 py-1.5 rounded-full font-medium transition-all ${
                   selectedConn?.id === c.id
-                    ? 'bg-indigo-600 text-white border-indigo-600 shadow'
-                    : selectedConn
-                      ? 'bg-white text-indigo-600 border-indigo-300 hover:bg-indigo-50'
-                      : 'bg-white/20 text-white border-white/40 hover:bg-white/30'
+                    ? 'bg-indigo-600 text-white shadow-sm'
+                    : 'bg-white text-gray-600 border border-gray-200 hover:border-indigo-300 hover:text-indigo-600'
                 }`}>
                 {c.name}
               </button>
             ))}
           </div>
+          {!selectedConn && <span className="text-xs text-amber-600 font-medium ml-auto">⚠ Selecione uma fonte</span>}
         </div>
       )}
 
