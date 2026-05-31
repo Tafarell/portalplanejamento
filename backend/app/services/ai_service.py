@@ -198,6 +198,34 @@ _PBI_TOOLS = [
                 "required": ["dax_query"]
             }
         }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "calcular_erlang_c",
+            "description": "Calcula o dimensionamento de agentes via Erlang C com precisão matemática. Use SEMPRE que precisar calcular agentes necessários para um call center. Requer volume de chamadas por hora e TMA em segundos.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "intervalos": {
+                        "type": "array",
+                        "description": "Lista de intervalos horários com chamadas e TMA",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "hora": {"type": "string", "description": "Ex: 10:00 - 11:00"},
+                                "chamadas_entrantes": {"type": "number", "description": "Chamadas por hora nesse intervalo"},
+                                "tma_segundos": {"type": "number", "description": "TMA em segundos"}
+                            },
+                            "required": ["hora", "chamadas_entrantes", "tma_segundos"]
+                        }
+                    },
+                    "target_sl": {"type": "number", "description": "Nível de serviço alvo (0.80 = 80%). Default: 0.80"},
+                    "target_time": {"type": "number", "description": "Tempo alvo em segundos (default: 20)"}
+                },
+                "required": ["intervalos"]
+            }
+        }
     }
 ]
 
@@ -356,10 +384,26 @@ def chat_with_powerbi(
                 args = json.loads(tool_call.function.arguments)
                 dax = args.get("dax_query", "")
             except Exception:
+                args = {}
                 dax = ""
-            pbi_queries.append(dax)
-            result = execute_dax_query(dataset_id, dax, token, workspace_id)
-            formatted = format_rows_for_llm(result)
+
+            if tool_call.function.name == "calcular_erlang_c":
+                from app.services.erlang_service import dimensionar_por_intervalo
+                try:
+                    intervalos = args.get("intervalos", [])
+                    target_sl = args.get("target_sl", 0.80)
+                    target_time = args.get("target_time", 20.0)
+                    erlang_result = dimensionar_por_intervalo(intervalos, target_sl, target_time)
+                    import json as _json
+                    formatted = "Resultado Erlang C:\n" + _json.dumps(erlang_result, ensure_ascii=False, indent=2)
+                    pbi_queries.append(f"[Erlang C] {len(intervalos)} intervalos, NS={target_sl*100:.0f}%, t={target_time}s")
+                except Exception as e:
+                    formatted = f"Erro Erlang C: {str(e)}"
+                    pbi_queries.append("[Erlang C] erro")
+            else:
+                pbi_queries.append(dax)
+                result = execute_dax_query(dataset_id, dax, token, workspace_id)
+                formatted = format_rows_for_llm(result)
             print(f"[AI DEBUG] Tool result (primeiros 200 chars): {repr(formatted[:200])}")
             messages.append({
                 "role": "tool",
