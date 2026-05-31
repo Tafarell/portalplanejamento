@@ -656,3 +656,13 @@ def format_rows_for_llm(result: dict, max_rows: int = 200) -> str:
     headers = list(rows[0].keys())
     # Limpa os nomes das colunas (Power BI retorna "Tabela[Coluna]" → mostra só "Coluna")
     clean_headers = [h.split("[")[-1].rstrip("]") if "[" in h else h for h in headers]
+
+    lines = ["| " + " | ".join(clean_headers) + " |"]
+    lines.append("| " + " | ".join("---" for _ in clean_headers) + " |")
+
+    for row in rows[:max_rows]:
+        vals = [str(row.get(h, "")) for h in headers]
+        lines.append("| " + " | ".join(vals) + " |")
+
+    suffix = f"\n\n*Exibindo {min(max_rows, len(rows))} de {result['count']} linhas.*" if result.get("count", 0) > max_rows else ""
+    return "\n".join(lines) + suffix
