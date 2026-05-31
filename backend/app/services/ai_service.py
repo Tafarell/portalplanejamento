@@ -64,10 +64,13 @@ Se o usuario mencionar contrato: filtre por dGrupoEmpresa[secao_resumido] = "Nom
 Se não mencionar: NÃO filtre — retorne todos os contratos.
 
 ## MEDIDAS PRINCIPAIS:
-[Chamadas Bilhetadas], [Chamadas Atendidas], [Chamadas Abandonadas], [Chamadas Entrantes],
-[Recebidas na URA], [Retida na URA], [Tempo Médio Atendidas], [Tempo Médio Espera],
-[Tempo Médio de Pausa], [Absenteísmo], [Nível de Serviço], [Nível de Abandono],
-[Rechamadas], [% Rechamadas], [Score]
+Chamadas: [Chamadas Bilhetadas], [Chamadas Atendidas], [Chamadas Abandonadas], [Chamadas Entrantes],
+[Chamadas Únicas], [Recebidas na URA], [Retida na URA], [Chamadas Desistente/Bloqueadas]
+Tempo: [Tempo Médio Atendidas], [Tempo Médio Espera], [Tempo Médio de Pausa], [Tempo Médio Bilhetagem]
+Performance: [Nível de Serviço], [Nível de Abandono], [Absenteísmo], [Score]
+Rechamadas: [Rechamadas], [% Rechamadas], [Rechamadas DAC]
+RH: [Total de Colaboradores], [Total de Colaboradores Desligados], [Total de Colaboradores Contratados], [Quadro de Colaboradores], [Quadro Ativo de Colaboradores], [Taxa de Desligamento]
+Agentes: [Total de Agentes Logados], [Total de Agentes Eventos]
 
 ## EXEMPLOS DAX:
 
@@ -242,7 +245,7 @@ def chat_with_powerbi(
     unique_measures = [m for m in measure_names if not (m in seen or seen.add(m))]
     
     if unique_measures:
-        measures_list = ", ".join(f"[{m}]" for m in unique_measures[:100])
+        measures_list = ", ".join(f"[{m}]" for m in unique_measures)  # todas as medidas
         schema = f"MEDIDAS EXATAS DISPONÍVEIS (use SOMENTE estes nomes):\n{measures_list}\n\nSchema resumido:\n{raw_schema[:1500]}"
     else:
         schema = raw_schema[:3000] + ("..." if len(raw_schema) > 3000 else "")
