@@ -13,6 +13,8 @@ const roleLabels  = { admin: 'Administrador', internal: 'Interno', external: 'Ex
 export default function AdminUsers() {
   const [users, setUsers]   = useState([])
   const [grupos, setGrupos] = useState([])
+  const [pbiConns, setPbiConns] = useState([])
+  const [userPbiConns, setUserPbiConns] = useState({}) // {userId: [connId, ...]}
   const [search, setSearch] = useState('')
   const [modal, setModal]   = useState(false)
   const [form, setForm]     = useState(EMPTY)
@@ -195,9 +197,31 @@ export default function AdminUsers() {
                 <input type="checkbox" checked={form.can_use_ai} onChange={e => setForm({...form, can_use_ai: e.target.checked})} className="rounded accent-purple-600 w-4 h-4" />
                 <div className="flex items-center gap-1.5">
                   <Bot className="w-3.5 h-3.5 text-purple-500" />
-                  <span className="text-sm text-gray-700">Assistente IA</span>
+                  <span className="text-sm text-gray-700">Agente IA</span>
                 </div>
               </label>
+              {form.can_use_ai && pbiConns.length > 0 && (
+                <div className="p-3 rounded-xl border border-purple-100 bg-purple-50">
+                  <p className="text-xs font-medium text-purple-700 mb-2">Fontes do Agente IA:</p>
+                  <div className="flex flex-wrap gap-2">
+                    {pbiConns.map(c => {
+                      const checked = (form._pbi_conns || []).includes(c.id)
+                      return (
+                        <label key={c.id} className="flex items-center gap-1.5 cursor-pointer">
+                          <input type="checkbox" checked={checked}
+                            onChange={e => {
+                              const cur = form._pbi_conns || []
+                              setForm({...form, _pbi_conns: e.target.checked ? [...cur, c.id] : cur.filter(id => id !== c.id)})
+                            }}
+                            className="rounded accent-purple-600 w-3.5 h-3.5" />
+                          <span className="text-xs text-purple-800">{c.name}</span>
+                        </label>
+                      )
+                    })}
+                  </div>
+                  {!(form._pbi_conns?.length) && <p className="text-xs text-purple-500 mt-1">Sem seleção = acesso a todas as fontes</p>}
+                </div>
+              )}
             </div>
           </div>
           <ModalFooter onCancel={closeModal} loading={loading} saveLabel={editId ? 'Salvar alterações' : 'Criar usuário'} />

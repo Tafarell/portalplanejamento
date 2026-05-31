@@ -68,3 +68,25 @@ def toggle_user(user_id: int, db: Session = Depends(get_db), admin=Depends(requi
     user.is_active = not user.is_active
     db.commit()
     return {"id": user.id, "is_active": user.is_active}
+
+
+# ── Fontes PBI por usuário ─────────────────────────────────────────────────────
+
+from app.models.pbi_connection import PBIConnection
+from app.models.user_pbi_connection import UserPBIConnection
+
+@router.get("/{user_id}/pbi-connections")
+def get_user_pbi_connections(user_id: int, db: Session = Depends(get_db),
+                              admin=Depends(require_admin)):
+    links = db.query(UserPBIConnection).filter(UserPBIConnection.user_id == user_id).all()
+    return [l.connection_id for l in links]
+
+
+@router.put("/{user_id}/pbi-connections")
+def set_user_pbi_connections(user_id: int, connection_ids: list[int],
+                              db: Session = Depends(get_db), admin=Depends(require_admin)):
+    db.query(UserPBIConnection).filter(UserPBIConnection.user_id == user_id).delete()
+    for cid in connection_ids:
+        db.add(UserPBIConnection(user_id=user_id, connection_id=cid))
+    db.commit()
+    return {"ok": True}

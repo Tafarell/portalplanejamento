@@ -70,8 +70,15 @@ def _get_conn(db: Session, conn_id: int) -> PBIConnection:
 @router.get("/connections", response_model=List[PBIConnectionOut])
 def list_connections(db: Session = Depends(get_db),
                      current_user: User = Depends(get_current_user)):
-    """Lista todas as conexões Power BI."""
-    return db.query(PBIConnection).order_by(PBIConnection.id).all()
+    """Retorna conexoes - admin ve todas, usuario ve apenas as permitidas."""
+    from app.models.user_pbi_connection import UserPBIConnection
+    all_conns = db.query(PBIConnection).filter(PBIConnection.is_active == True).order_by(PBIConnection.id).all()
+    if current_user.role.value == 'admin':
+        return all_conns
+    allowed_ids = {l.connection_id for l in db.query(UserPBIConnection).filter(UserPBIConnection.user_id == current_user.id).all()}
+    if not allowed_ids:
+        return all_conns
+    return [c for c in all_conns if c.id in allowed_ids]
 
 
 @router.get("/connection", response_model=Optional[PBIConnectionOut])

@@ -259,7 +259,7 @@ export default function AIChat({ dashboardId, dashboardName }) {
         const welcomeMsg = dashboardName
           ? `Olá! Estou pronto para analisar o dashboard **${dashboardName}**.\n\nFaça sua pergunta.`
           : active && numConns > 1
-            ? `Olá! Sou seu **Agente de Análise de Dados** com acesso a **${numConns} fontes** conectadas.\n\nPosso consultar indicadores, comparar períodos e **gerar gráficos** automaticamente.\n\n👆 **Para começar, selecione uma fonte de dados** no seletor acima.`
+            ? `Olá! Sou seu **Agente de Análise de Dados**.\n\nPosso consultar indicadores, comparar períodos e **gerar gráficos** automaticamente.\n\n👆 **Para começar, selecione uma fonte de dados** no seletor acima.`
             : active ? WELCOME_PBI : WELCOME_DEFAULT
         setMessages([{ role: 'assistant', content: welcomeMsg, pbi_queries: [] }])
       })
