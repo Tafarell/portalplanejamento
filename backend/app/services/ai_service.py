@@ -30,6 +30,7 @@ PBI_SYSTEM_PROMPT = """Você é um assistente de BI conectado ao Power BI em tem
 ## REGRAS CRITICAS:
 
 1. NUNCA invente números. Só apresente valores que vieram diretamente da query.
+1b. Use SOMENTE os nomes de medidas EXATOS do schema abaixo. NUNCA adivinhe ou abrevie nomes de medidas. Se não encontrar a medida no schema, pergunte ao usuário o nome correto.
 2. Tabelas com acento SEMPRE entre aspas simples: 'dCalendário'[Date]
 3. Para filtros com MONTH/WEEKNUM, use FILTER(ALL(...)): FILTER(ALL('dCalendário'), MONTH('dCalendário'[Date]) = 4)
 4. SUMMARIZECOLUMNS: filtros de função dentro de FILTER(), nunca diretamente
@@ -231,9 +232,17 @@ def chat_with_powerbi(
 
     from datetime import date
     today = date.today()
-    # Limita schema para evitar overflow de contexto do modelo
+    # Prioriza medidas no schema (primeiros 4000 chars)
     raw_schema = schema_context or "Schema nao fornecido."
-    schema = raw_schema[:3000] + ("..." if len(raw_schema) > 3000 else "")
+    # Se schema tem secao de medidas, coloca ela primeiro
+    if "Medidas:" in raw_schema or "medidas" in raw_schema.lower():
+        parts = raw_schema.split("\n")
+        measure_lines = [l for l in parts if "[" in l and "]" in l]
+        other_lines = [l for l in parts if not ("[" in l and "]" in l)]
+        reordered = "\n".join(other_lines[:50]) + "\n\n## MEDIDAS DISPONÍVEIS:\n" + "\n".join(measure_lines[:200])
+        schema = reordered[:4000]
+    else:
+        schema = raw_schema[:4000] + ("..." if len(raw_schema) > 4000 else "")
 
     date_info = (
         "Hoje e " + today.isoformat() +
