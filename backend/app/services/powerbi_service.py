@@ -75,13 +75,13 @@ def execute_dax_query(dataset_id: str, dax_query: str, token: str, workspace_id:
         data = {}
 
     # LOG para debug
-    print(f"[PBI DEBUG] Status: {resp.status_code}, Data keys: {list(data.keys()) if isinstance(data, dict) else type(data)}")
+    print(f"[PBI DEBUG] Status: {resp.status_code}")
     if isinstance(data, dict) and 'results' in data:
         results_debug = data['results']
         if results_debug:
-            first_debug = results_debug[0]
-            tables_debug = first_debug.get('tables', [])
-            print(f"[PBI DEBUG] tables count: {len(tables_debug)}, rows: {len(tables_debug[0].get('rows', [])) if tables_debug else 0}")
+            tables_debug = results_debug[0].get('tables', [])
+            rows_debug = tables_debug[0].get('rows', []) if tables_debug else []
+            print(f"[PBI DEBUG] rows: {len(rows_debug)}, values: {rows_debug[:2]}")
 
     # Erros de nível HTTP
     if resp.status_code >= 400:
