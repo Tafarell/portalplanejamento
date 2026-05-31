@@ -55,10 +55,15 @@ Se não mencionar: NÃO filtre — retorne todos os contratos.
 
 ## EXEMPLOS DAX:
 
-Total geral:
-EVALUATE ROW("Total", [Chamadas Bilhetadas])
+IMPORTANTE: Medidas de volume SEMPRE precisam de filtro de data. Sem filtro de data, retornam BLANK.
 
-Com filtro de data e contrato:
+Ontem (sempre use este padrão para "total de ontem"):
+EVALUATE CALCULATETABLE(
+    ROW("Total", [Chamadas Bilhetadas]),
+    'dCalendário'[Date] = TODAY() - 1
+)
+
+Ontem com contrato:
 EVALUATE CALCULATETABLE(
     ROW("Total", [Chamadas Atendidas]),
     'dCalendário'[Date] = TODAY() - 1,

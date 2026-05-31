@@ -74,6 +74,15 @@ def execute_dax_query(dataset_id: str, dax_query: str, token: str, workspace_id:
     except Exception:
         data = {}
 
+    # LOG para debug
+    print(f"[PBI DEBUG] Status: {resp.status_code}, Data keys: {list(data.keys()) if isinstance(data, dict) else type(data)}")
+    if isinstance(data, dict) and 'results' in data:
+        results_debug = data['results']
+        if results_debug:
+            first_debug = results_debug[0]
+            tables_debug = first_debug.get('tables', [])
+            print(f"[PBI DEBUG] tables count: {len(tables_debug)}, rows: {len(tables_debug[0].get('rows', [])) if tables_debug else 0}")
+
     # Erros de nível HTTP
     if resp.status_code >= 400:
         err = data.get("error", {}) if isinstance(data, dict) else {}
