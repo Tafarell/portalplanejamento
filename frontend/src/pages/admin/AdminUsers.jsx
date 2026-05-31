@@ -29,7 +29,15 @@ export default function AdminUsers() {
   useEffect(() => { fetchAll() }, [])
 
   const openCreate = () => { setForm(EMPTY); setEditId(null); setModal(true) }
-  const openEdit   = u  => { setForm({ ...u, password: '', client_id: u.client_id || '' }); setEditId(u.id); setModal(true) }
+  const openEdit = async u => {
+    setForm({ ...u, password: '', client_id: u.client_id || '', _pbi_conns: [] })
+    setEditId(u.id)
+    try {
+      const { data } = await api.get(`/users/${u.id}/pbi-connections`)
+      setForm(f => ({ ...f, _pbi_conns: data || [] }))
+    } catch {}
+    setModal(true)
+  }
   const closeModal = () => setModal(false)
 
   const save = async e => {
@@ -37,8 +45,13 @@ export default function AdminUsers() {
     try {
       const payload = { ...form, client_id: form.client_id ? Number(form.client_id) : null }
       if (!payload.password) delete payload.password
-      if (editId) await api.put(`/users/${editId}`, payload)
-      else        await api.post('/users', payload)
+      if (editId) {
+        await api.put(`/users/${editId}`, payload)
+        await api.put(`/users/${editId}/pbi-connections`, form._pbi_conns || [])
+      } else {
+        const res = await api.post('/users', payload)
+        if (form._pbi_conns?.length) await api.put(`/users/${res.data.id}/pbi-connections`, form._pbi_conns)
+      }
       closeModal(); fetchAll()
     } finally { setLoading(false) }
   }
