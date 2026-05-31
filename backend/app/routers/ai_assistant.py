@@ -91,6 +91,7 @@ def chat(request: ChatRequest, db: Session = Depends(get_db),
             pbi_conn = next((c for c in all_conns if c.id == request.pbi_connection_id), all_conns[0])
         else:
             pbi_conn = all_conns[0]
+        print(f"[AI DEBUG] pbi_conn={pbi_conn.name} (id={pbi_conn.id}), pbi_connection_id={request.pbi_connection_id}, all_conns={[(c.id, c.name) for c in all_conns]}")
 
         try:
             if len(all_conns) > 1 and not request.pbi_connection_id:
