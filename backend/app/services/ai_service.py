@@ -232,17 +232,20 @@ def chat_with_powerbi(
 
     from datetime import date
     today = date.today()
-    # Prioriza medidas no schema (primeiros 4000 chars)
-    raw_schema = schema_context or "Schema nao fornecido."
-    # Se schema tem secao de medidas, coloca ela primeiro
-    if "Medidas:" in raw_schema or "medidas" in raw_schema.lower():
-        parts = raw_schema.split("\n")
-        measure_lines = [l for l in parts if "[" in l and "]" in l]
-        other_lines = [l for l in parts if not ("[" in l and "]" in l)]
-        reordered = "\n".join(other_lines[:50]) + "\n\n## MEDIDAS DISPONÍVEIS:\n" + "\n".join(measure_lines[:200])
-        schema = reordered[:4000]
+    # Extrai nomes de medidas do schema para injetar de forma compacta
+    raw_schema = schema_context or ""
+    import re
+    # Extrai todos os nomes de medidas (linhas com [Nome])
+    measure_names = re.findall(r'\[([^\]]+)\]', raw_schema)
+    # Remove duplicatas mantendo ordem
+    seen = set()
+    unique_measures = [m for m in measure_names if not (m in seen or seen.add(m))]
+    
+    if unique_measures:
+        measures_list = ", ".join(f"[{m}]" for m in unique_measures[:100])
+        schema = f"MEDIDAS EXATAS DISPONÍVEIS (use SOMENTE estes nomes):\n{measures_list}\n\nSchema resumido:\n{raw_schema[:1500]}"
     else:
-        schema = raw_schema[:4000] + ("..." if len(raw_schema) > 4000 else "")
+        schema = raw_schema[:3000] + ("..." if len(raw_schema) > 3000 else "")
 
     date_info = (
         "Hoje e " + today.isoformat() +
