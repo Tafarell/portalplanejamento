@@ -271,6 +271,29 @@ export default function AIChat({ dashboardId, dashboardName }) {
 
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: 'smooth' }) }, [messages])
 
+  const triggerBriefing = async (conn) => {
+    if (!conn) return
+    const briefingMsg = `📊 Briefing automático — analisando ${conn.name}...`
+    setMessages(prev => [...prev, { role: 'assistant', content: briefingMsg, pbi_queries: [] }])
+    setLoading(true)
+    try {
+      const { data } = await api.post('/ai/chat', {
+        question: 'Faça um briefing proativo de hoje: total de chamadas bilhetadas, chamadas atendidas, % abandono e TMA. Destaque qualquer anomalia. Seja conciso e use os dados reais.',
+        pbi_connection_id: conn.id,
+        conversation_history: [],
+      })
+      setMessages(prev => [...prev.slice(0, -1), {
+        role: 'assistant',
+        content: data.answer || 'Não foi possível carregar o briefing.',
+        pbi_queries: data.pbi_queries || [],
+      }])
+    } catch {
+      setMessages(prev => prev.slice(0, -1))
+    } finally {
+      setLoading(false)
+    }
+  }
+
   const send = async (text) => {
     const question = (text || input).trim()
     if (!question || loading) return
@@ -351,7 +374,11 @@ export default function AIChat({ dashboardId, dashboardName }) {
           <span className="text-xs text-gray-500 font-medium whitespace-nowrap">Fonte:</span>
           <div className="flex gap-1.5 flex-wrap">
             {connections.map(c => (
-              <button key={c.id} onClick={() => setSelectedConn(c)}
+              <button key={c.id} onClick={() => {
+                setSelectedConn(c)
+                // Auto-briefing: dispara analise proativa ao selecionar fonte
+                setTimeout(() => triggerBriefing(c), 100)
+              }}
                 className={`text-xs px-3 py-1.5 rounded-full font-medium transition-all ${
                   selectedConn?.id === c.id
                     ? 'bg-indigo-600 text-white shadow-sm'
