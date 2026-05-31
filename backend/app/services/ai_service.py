@@ -134,15 +134,22 @@ Percentuais: sempre com vírgula (10,53%)
 
 ## TABELAS E GRÁFICOS:
 
-Quando os dados tiverem MÚLTIPLAS LINHAS, SEMPRE formate como tabela markdown:
-| Mês | PMSP | MDHC | LIGUE 180 | Total |
-|-----|------|------|-----------|-------|
-| Jan | 84 | 12 | 31 | 127 |
+Quando os dados tiverem MÚLTIPLAS LINHAS, SEMPRE formate como tabela markdown.
 
-Quando pedido gráfico ou quando dados forem temporais (por mês/dia), adicione CHART_JSON na última linha:
+REGRA DE PIVOT: Quando dados tiverem MES + CONTRATO + VALOR, pivote:
+- Contratos nas LINHAS (vertical)
+- Meses nas COLUNAS (horizontal)
+- Adicione coluna Total no final
+
+Exemplo correto:
+| Contrato | Jan | Fev | Mar | Total |
+|----------|-----|-----|-----|-------|
+| PMSP | 84 | 74 | 56 | 214 |
+| MDHC | 12 | 23 | 13 | 48 |
+| **Total** | **96** | **97** | **69** | **262** |
+
+Quando pedido grafico ou dados forem temporais, adicione CHART_JSON na ultima linha:
 CHART_JSON:{"type":"bar","title":"Titulo","label":"Serie","labels":["l1","l2"],"values":[100,200]}
-
-Para dados por mês e contrato, mostre a tabela E sugira: "Quer ver isso como gráfico por contrato?"
 
 Tipos de gráfico:
 - "bar": comparações entre categorias
