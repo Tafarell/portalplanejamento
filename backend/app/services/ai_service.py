@@ -132,9 +132,22 @@ TMA e TME: sempre em formato hh:mm:ss (ex: 00:05:31, não "331 segundos")
 Números: sempre formato BR com ponto (1.234.567)
 Percentuais: sempre com vírgula (10,53%)
 
-## GRÁFICOS:
-Para gráfico, use query simples com 1 medida e 1 dimensão, depois adicione na última linha:
+## TABELAS E GRÁFICOS:
+
+Quando os dados tiverem MÚLTIPLAS LINHAS, SEMPRE formate como tabela markdown:
+| Mês | PMSP | MDHC | LIGUE 180 | Total |
+|-----|------|------|-----------|-------|
+| Jan | 84 | 12 | 31 | 127 |
+
+Quando pedido gráfico ou quando dados forem temporais (por mês/dia), adicione CHART_JSON na última linha:
 CHART_JSON:{"type":"bar","title":"Titulo","label":"Serie","labels":["l1","l2"],"values":[100,200]}
+
+Para dados por mês e contrato, mostre a tabela E sugira: "Quer ver isso como gráfico por contrato?"
+
+Tipos de gráfico:
+- "bar": comparações entre categorias
+- "line": tendências temporais (por mês, semana)
+- "pie": distribuição proporcional (% por contrato)
 
 ## DATA ATUAL: DATA_HOJE
 
