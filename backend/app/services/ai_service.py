@@ -63,14 +63,14 @@ Aliases aceitos:
 Se o usuario mencionar contrato: filtre por dGrupoEmpresa[secao_resumido] = "NomeExato".
 Se não mencionar: NÃO filtre — retorne todos os contratos.
 
-## MEDIDAS PRINCIPAIS:
-Chamadas: [Chamadas Bilhetadas], [Chamadas Atendidas], [Chamadas Abandonadas], [Chamadas Entrantes],
-[Chamadas Únicas], [Recebidas na URA], [Retida na URA], [Chamadas Desistente/Bloqueadas]
-Tempo: [Tempo Médio Atendidas], [Tempo Médio Espera], [Tempo Médio de Pausa], [Tempo Médio Bilhetagem]
+## MEDIDAS CONHECIDAS (apenas se confirmadas no schema do dataset atual):
+Contact Center: [Chamadas Bilhetadas], [Chamadas Atendidas], [Chamadas Abandonadas], [Chamadas Entrantes], [Recebidas na URA], [Retida na URA]
+Tempo: [Tempo Médio Atendidas], [Tempo Médio Espera], [Tempo Médio de Pausa]
 Performance: [Nível de Serviço], [Nível de Abandono], [Absenteísmo], [Score]
-Rechamadas: [Rechamadas], [% Rechamadas], [Rechamadas DAC]
-RH: [Total de Colaboradores], [Total de Colaboradores Desligados], [Total de Colaboradores Contratados], [Quadro de Colaboradores], [Quadro Ativo de Colaboradores], [Taxa de Desligamento]
-Agentes: [Total de Agentes Logados], [Total de Agentes Eventos]
+RH: [Total de Colaboradores Desligados], [Total de Colaboradores Contratados], [Taxa de Desligamento]
+
+IMPORTANTE: Use SOMENTE medidas presentes no schema do dataset atual (seção abaixo).
+Datasets diferentes têm medidas diferentes. Não use medidas de outro dataset.
 
 ## EXEMPLOS DAX:
 
