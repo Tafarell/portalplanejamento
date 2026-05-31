@@ -660,8 +660,21 @@ def format_rows_for_llm(result: dict, max_rows: int = 200) -> str:
     lines = ["| " + " | ".join(clean_headers) + " |"]
     lines.append("| " + " | ".join("---" for _ in clean_headers) + " |")
 
+    def fmt_val(h, v):
+        if v is None:
+            return "0"
+        # Detecta colunas de tempo (TMA, TME, TMP) e formata como hh:mm:ss
+        h_lower = h.lower()
+        is_time = any(t in h_lower for t in ['tma', 'tme', 'tmp', 'tempo medio', 'tempo médio', 'duracao', 'duração'])
+        if is_time and isinstance(v, (int, float)) and v > 0:
+            secs = int(v)
+            h2, rem = divmod(secs, 3600)
+            m2, s2 = divmod(rem, 60)
+            return f"{h2:02d}:{m2:02d}:{s2:02d}"
+        return str(v)
+
     for row in rows[:max_rows]:
-        vals = [str(row.get(h, "") if row.get(h, "") is not None else 0) for h in headers]
+        vals = [fmt_val(h, row.get(h)) for h in headers]
         lines.append("| " + " | ".join(vals) + " |")
 
     suffix = f"\n\n*Exibindo {min(max_rows, len(rows))} de {result['count']} linhas.*" if result.get("count", 0) > max_rows else ""
