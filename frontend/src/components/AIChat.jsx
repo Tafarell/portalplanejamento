@@ -433,7 +433,8 @@ export default function AIChat({ dashboardId, dashboardName }) {
       <div className="flex-1 overflow-y-auto px-4 py-5 space-y-4">
         <div className="max-w-4xl mx-auto w-full space-y-4">
           {messages.map((msg, i) => {
-            const { text, chart } = parseChartData(msg.content)
+            const { text: _rawText, chart } = parseChartData(msg.content || '')
+            const { text, suggestions } = parseSuggestions(_rawText || '')
             return (
               <div key={i} className={`flex gap-3 ${msg.role === 'user' ? 'flex-row-reverse' : ''}`}>
                 <div className={`w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 mt-1 ${msg.role === 'assistant' ? 'bg-indigo-600' : 'bg-gray-700'}`}>
