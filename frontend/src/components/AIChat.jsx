@@ -280,7 +280,7 @@ export default function AIChat({ dashboardId, dashboardName }) {
     setLoading(true)
     try {
       const { data } = await api.post('/ai/chat', {
-        question: 'Faça um briefing proativo de hoje: total de chamadas bilhetadas, chamadas atendidas, % abandono e TMA. Destaque qualquer anomalia. Seja conciso e use os dados reais.',
+        question: 'Faça um briefing do mês atual: total de chamadas bilhetadas, chamadas atendidas, % abandono e TMA. Compare com o mês anterior se possível. Destaque qualquer anomalia. Seja conciso e use os dados reais.',
         pbi_connection_id: conn.id,
         conversation_history: [],
       })
