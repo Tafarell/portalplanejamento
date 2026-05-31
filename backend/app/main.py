@@ -49,6 +49,7 @@ def _run_migrations():
         "ALTER TABLE pbi_connections ADD COLUMN IF NOT EXISTS measures_context TEXT",
         "ALTER TABLE pbi_connections ADD COLUMN IF NOT EXISTS description VARCHAR(300)",
         "ALTER TABLE pbi_connections ALTER COLUMN schema_context TYPE TEXT",
+        "CREATE TABLE IF NOT EXISTS ai_conversations (id SERIAL PRIMARY KEY, user_id INTEGER REFERENCES users(id) ON DELETE CASCADE, connection_id INTEGER, question TEXT NOT NULL, answer TEXT NOT NULL, created_at TIMESTAMP DEFAULT NOW())",
         "CREATE TABLE IF NOT EXISTS user_pbi_connections (id SERIAL PRIMARY KEY, user_id INTEGER REFERENCES users(id) ON DELETE CASCADE, connection_id INTEGER REFERENCES pbi_connections(id) ON DELETE CASCADE, UNIQUE(user_id, connection_id))",
         "ALTER TABLE pbi_connections ALTER COLUMN measures_context TYPE TEXT",
     ]

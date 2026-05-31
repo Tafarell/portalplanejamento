@@ -11,6 +11,7 @@ from app.models.pbi_connection import PBIConnection
 from app.models.contrato import Contrato
 from app.utils.security import get_current_user
 from app.services.ai_service import chat_with_ai, chat_with_powerbi, chat_with_multi_powerbi
+from app.models.ai_conversation import AIConversation
 
 router = APIRouter(prefix="/api/ai", tags=["Assistente IA"])
 
@@ -138,6 +139,9 @@ def chat(request: ChatRequest, db: Session = Depends(get_db),
             raise HTTPException(status_code=500, detail=f"Erro ao consultar Power BI: {str(e)}")
 
         _log(db, current_user.id, request.dashboard_id, request.question)
+        # Salva na memória de contexto
+        if result.get("answer"):
+            _save_memory(db, current_user.id, request.pbi_connection_id, request.question, result["answer"])
         return ChatResponse(
             answer=result["answer"],
             pbi_active=True,
@@ -183,6 +187,27 @@ def chat(request: ChatRequest, db: Session = Depends(get_db),
         dashboard_name=dashboard.name if dashboard else None,
         pbi_active=False,
     )
+
+
+def _save_memory(db: Session, user_id: int, connection_id: Optional[int], question: str, answer: str):
+    try:
+        conv = AIConversation(user_id=user_id, connection_id=connection_id,
+                              question=question[:500], answer=answer[:2000])
+        db.add(conv)
+        db.commit()
+    except Exception:
+        db.rollback()
+
+
+@router.get("/history")
+def get_history(connection_id: Optional[int] = None, limit: int = 10,
+                db: Session = Depends(get_db),
+                current_user: User = Depends(get_current_user)):
+    q = db.query(AIConversation).filter(AIConversation.user_id == current_user.id)
+    if connection_id:
+        q = q.filter(AIConversation.connection_id == connection_id)
+    convs = q.order_by(AIConversation.created_at.desc()).limit(limit).all()
+    return [{"question": c.question, "answer": c.answer, "created_at": c.created_at.isoformat()} for c in reversed(convs)]
 
 
 def _log(db: Session, user_id: int, dashboard_id: Optional[int], question: str):

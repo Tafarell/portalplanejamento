@@ -241,6 +241,8 @@ export default function AIChat({ dashboardId, dashboardName }) {
   const [pbiActive, setPbiActive]         = useState(false)
   const [connections, setConnections]     = useState([])
   const [selectedConn, setSelectedConn]   = useState(null)
+  const [showHistory, setShowHistory]     = useState(false)
+  const [history, setHistory]             = useState([])
   const [messages, setMessages]           = useState([])
   const [input, setInput]                 = useState('')
   const [loading, setLoading]             = useState(false)
@@ -362,11 +364,19 @@ export default function AIChat({ dashboardId, dashboardName }) {
             </p>
           </div>
         </div>
-        {messages.length > 1 && (
-          <button onClick={clear} className="flex items-center gap-1.5 text-xs text-gray-400 hover:text-red-500 transition-colors px-3 py-1.5 rounded-lg hover:bg-red-50">
-            <Trash2 className="w-3.5 h-3.5" /> Limpar
-          </button>
-        )}
+        <div className="flex items-center gap-2">
+          {history.length > 0 && (
+            <button onClick={() => setShowHistory(v => !v)}
+              className="flex items-center gap-1.5 text-xs text-gray-400 hover:text-indigo-600 transition-colors px-3 py-1.5 rounded-lg hover:bg-indigo-50">
+              🕐 Histórico
+            </button>
+          )}
+          {messages.length > 1 && (
+            <button onClick={clear} className="flex items-center gap-1.5 text-xs text-gray-400 hover:text-red-500 transition-colors px-3 py-1.5 rounded-lg hover:bg-red-50">
+              <Trash2 className="w-3.5 h-3.5" /> Limpar
+            </button>
+          )}
+        </div>
       </div>
 
       {pbiActive && connections.length > 1 && (
@@ -376,6 +386,8 @@ export default function AIChat({ dashboardId, dashboardName }) {
             {connections.map(c => (
               <button key={c.id} onClick={() => {
                 setSelectedConn(c)
+                // Carrega histórico da fonte
+                api.get(`/ai/history?connection_id=${c.id}&limit=5`).then(r => setHistory(r.data || [])).catch(() => {})
                 // Auto-briefing: dispara analise proativa ao selecionar fonte
                 setTimeout(() => triggerBriefing(c), 100)
               }}
@@ -389,6 +401,19 @@ export default function AIChat({ dashboardId, dashboardName }) {
             ))}
           </div>
           {!selectedConn && <span className="text-xs text-amber-600 font-medium ml-auto">⚠ Selecione uma fonte</span>}
+        </div>
+      )}
+
+      {showHistory && history.length > 0 && (
+        <div className="border-b bg-gray-50 px-4 py-3 flex-shrink-0 max-h-48 overflow-y-auto">
+          <p className="text-xs font-semibold text-gray-600 mb-2">🕐 Conversas recentes:</p>
+          {history.map((h, i) => (
+            <div key={i} className="mb-2 p-2 bg-white rounded-lg border border-gray-100 cursor-pointer hover:border-indigo-200"
+              onClick={() => { setShowHistory(false); send(h.question) }}>
+              <p className="text-xs font-medium text-gray-700 truncate">{h.question}</p>
+              <p className="text-xs text-gray-400 mt-0.5">{new Date(h.created_at).toLocaleDateString('pt-BR')}</p>
+            </div>
+          ))}
         </div>
       )}
 
