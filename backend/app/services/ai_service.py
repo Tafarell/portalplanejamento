@@ -85,6 +85,14 @@ EVALUATE SUMMARIZECOLUMNS(
     "Total", [Chamadas Atendidas]
 )
 
+Por mês (use MONTH na coluna Date, NAO colunas Mês/Ano que podem nao existir):
+EVALUATE SUMMARIZECOLUMNS(
+    MONTH('dCalendário'[Date]),
+    FILTER(ALL('dCalendário'), YEAR('dCalendário'[Date]) = 2026),
+    FILTER(ALL(dGrupoEmpresa), dGrupoEmpresa[secao_resumido] = "LIGUE 180"),
+    "Total", [Chamadas Bilhetadas]
+)
+
 ## POSTURA ANALÍTICA:
 Sempre calcule % e compare com período anterior quando possível.
 Destaque picos, anomalias e insights acionáveis.
