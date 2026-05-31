@@ -19,6 +19,17 @@ const QUICK_PBI = [
 const WELCOME_DEFAULT = `Olá! Sou seu **Agente de IA**.\n\nPosso analisar seus dashboards e responder perguntas sobre:\n- Faturamento e métricas\n- Comparações de período\n- Principais indicadores\n- Análise de tendências`
 const WELCOME_PBI = `Olá! Sou seu **Agente de Análise de Dados** conectado ao Power BI em tempo real.\n\nPosso consultar indicadores, comparar períodos, identificar anomalias e **gerar gráficos** automaticamente.\n\nFaça qualquer pergunta sobre seus dados!`
 
+function parseSuggestions(text) {
+  // Extrai perguntas sugeridas do texto da IA
+  const idx = text.indexOf('Sugestões de análise:')
+  if (idx === -1) return { text, suggestions: [] }
+  const before = text.slice(0, idx).trim()
+  const after = text.slice(idx + 'Sugestões de análise:'.length)
+  // Extrai linhas que parecem perguntas
+  const lines = after.split('\n').map(l => l.replace(/^[-*•\d.]+\s*/, '').trim()).filter(l => l.length > 5 && l.length < 120)
+  return { text: before, suggestions: lines.slice(0, 4) }
+}
+
 function parseChartData(content) {
   if (!content) return { text: content, chart: null }
   const marker = 'CHART_JSON:'
@@ -453,6 +464,16 @@ export default function AIChat({ dashboardId, dashboardName }) {
                           </ReactMarkdown>
                         </div>
                         <ChartWidget chart={chart} />
+                        {suggestions.length > 0 && (
+                          <div className="mt-3 flex flex-wrap gap-2 pt-2 border-t border-gray-100">
+                            {suggestions.map((s, si) => (
+                              <button key={si} onClick={() => send(s)}
+                                className="text-xs px-3 py-1.5 bg-indigo-50 text-indigo-700 border border-indigo-200 rounded-full hover:bg-indigo-100 transition-colors text-left">
+                                {s}
+                              </button>
+                            ))}
+                          </div>
+                        )}
                       </>
                     ) : (
                       <p className="leading-relaxed">{msg.content}</p>
