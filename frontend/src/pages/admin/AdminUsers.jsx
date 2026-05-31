@@ -210,12 +210,12 @@ export default function AdminUsers() {
                 <input type="checkbox" checked={form.can_use_ai} onChange={e => setForm({...form, can_use_ai: e.target.checked})} className="rounded accent-purple-600 w-4 h-4" />
                 <div className="flex items-center gap-1.5">
                   <Bot className="w-3.5 h-3.5 text-purple-500" />
-                  <span className="text-sm text-gray-700">Agente IA</span>
+                  <span className="text-sm text-gray-700">Agente de IA</span>
                 </div>
               </label>
               {form.can_use_ai && pbiConns.length > 0 && (
                 <div className="p-3 rounded-xl border border-purple-100 bg-purple-50">
-                  <p className="text-xs font-medium text-purple-700 mb-2">Fontes do Agente IA:</p>
+                  <p className="text-xs font-medium text-purple-700 mb-2">Fontes do Agente de IA:</p>
                   <div className="flex flex-wrap gap-2">
                     {pbiConns.map(c => {
                       const checked = (form._pbi_conns || []).includes(c.id)
