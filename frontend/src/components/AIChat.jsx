@@ -16,7 +16,7 @@ const QUICK_PBI = [
   'Compare o desempenho desta semana com a anterior',
   'Mostre os principais KPIs do contrato',
 ]
-const WELCOME_DEFAULT = `Olá! Sou seu **Agente IA**.\n\nPosso analisar seus dashboards e responder perguntas sobre:\n- Faturamento e métricas\n- Comparações de período\n- Principais indicadores\n- Análise de tendências`
+const WELCOME_DEFAULT = `Olá! Sou seu **Agente de IA**.\n\nPosso analisar seus dashboards e responder perguntas sobre:\n- Faturamento e métricas\n- Comparações de período\n- Principais indicadores\n- Análise de tendências`
 const WELCOME_PBI = `Olá! Sou seu **Agente de Análise de Dados** conectado ao Power BI em tempo real.\n\nPosso consultar indicadores, comparar períodos, identificar anomalias e **gerar gráficos** automaticamente.\n\nFaça qualquer pergunta sobre seus dados!`
 
 function parseChartData(content) {
@@ -305,7 +305,7 @@ export default function AIChat({ dashboardId, dashboardName }) {
       const detail = err?.response?.data?.detail || ''
       let msg = '❌ Erro ao processar sua pergunta. Tente novamente.'
       if (status === 403) {
-        msg = '🔒 Você não tem permissão para usar o Agente IA. Entre em contato com o administrador para solicitar acesso.'
+        msg = '🔒 Você não tem permissão para usar o Agente de IA. Entre em contato com o administrador para solicitar acesso.'
       } else if (detail) {
         msg = '❌ ' + detail
       }
@@ -327,7 +327,7 @@ export default function AIChat({ dashboardId, dashboardName }) {
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <h1 className="text-base font-semibold text-gray-900">Agente IA</h1>
+              <h1 className="text-base font-semibold text-gray-900">Agente de IA</h1>
               {pbiActive && (
                 <span className="flex items-center gap-1 text-xs font-medium text-indigo-700 bg-indigo-50 border border-indigo-200 px-2 py-0.5 rounded-full">
                   <Zap className="w-3 h-3" /> Power BI

@@ -6,7 +6,7 @@ import clsx from 'clsx'
 
 const navItems = [
   { to: '/', label: 'Workspace', icon: LayoutGrid, exact: true },
-  { to: '/ai', label: 'Agente IA', icon: Bot, exact: true, internalOnly: true },
+  { to: '/ai', label: 'Agente de IA', icon: Bot, exact: true, internalOnly: true },
 ]
 
 const adminItems = [
