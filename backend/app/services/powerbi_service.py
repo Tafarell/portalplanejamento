@@ -677,5 +677,30 @@ def format_rows_for_llm(result: dict, max_rows: int = 200) -> str:
         vals = [fmt_val(h, row.get(h)) for h in headers]
         lines.append("| " + " | ".join(vals) + " |")
 
+    # Adiciona linha de totalizador
+    if len(rows) > 1:
+        total_vals = []
+        for h, ch in zip(headers, clean_headers):
+            h_lower = h.lower()
+            is_time = any(t in h_lower for t in ['tma', 'tme', 'tmp', 'tempo medio', 'tempo médio', 'duracao', 'duração'])
+            # Coleta valores numéricos da coluna
+            col_vals = [row.get(h) for row in rows if isinstance(row.get(h), (int, float)) and row.get(h) is not None]
+            if not col_vals:
+                total_vals.append("—")
+            elif is_time:
+                # Média para colunas de tempo
+                avg_secs = int(sum(col_vals) / len(col_vals))
+                h2, rem = divmod(avg_secs, 3600)
+                m2, s2 = divmod(rem, 60)
+                total_vals.append(f"**{h2:02d}:{m2:02d}:{s2:02d}**")
+            else:
+                # Soma para colunas numéricas
+                total = sum(col_vals)
+                if total == int(total):
+                    total_vals.append(f"**{int(total):,}**".replace(",", "."))
+                else:
+                    total_vals.append(f"**{total:,.0f}**".replace(",", "."))
+        lines.append("| **Total/Média** | " + " | ".join(total_vals[1:]) + " |")
+
     suffix = f"\n\n*Exibindo {min(max_rows, len(rows))} de {result['count']} linhas.*" if result.get("count", 0) > max_rows else ""
     return "\n".join(lines) + suffix
