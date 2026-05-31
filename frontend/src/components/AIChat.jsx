@@ -431,7 +431,22 @@ export default function AIChat({ dashboardId, dashboardName }) {
                     {msg.role === 'assistant' ? (
                       <>
                         <div className="overflow-x-auto">
-                          <ReactMarkdown remarkPlugins={[remarkGfm]} className="prose prose-sm max-w-none prose-p:my-1 prose-headings:my-2 prose-li:my-0.5 prose-table:text-xs prose-table:w-full prose-th:bg-indigo-50 prose-th:text-indigo-800 prose-th:font-semibold prose-th:px-2 prose-th:py-1.5 prose-th:border prose-th:border-indigo-200 prose-td:px-2 prose-td:py-1 prose-td:border prose-td:border-gray-200 prose-tr:even:bg-gray-50">
+                          <ReactMarkdown
+                            remarkPlugins={[remarkGfm]}
+                            className="prose prose-sm max-w-none prose-p:my-1 prose-headings:my-2 prose-li:my-0.5"
+                            components={{
+                              table: ({node, ...props}) => (
+                                <div className="overflow-x-auto my-2 rounded-lg border border-gray-200 shadow-sm">
+                                  <table style={{borderCollapse:'collapse',width:'100%',fontSize:'12px'}} {...props} />
+                                </div>
+                              ),
+                              thead: ({node, ...props}) => <thead style={{background:'#4f46e5'}} {...props} />,
+                              th: ({node, ...props}) => <th style={{padding:'8px 12px',color:'white',fontWeight:600,textAlign:'left',whiteSpace:'nowrap',borderRight:'1px solid rgba(255,255,255,0.2)'}} {...props} />,
+                              tbody: ({node, ...props}) => <tbody {...props} />,
+                              tr: ({node, className, ...props}) => <tr style={{borderBottom:'1px solid #e5e7eb'}} {...props} />,
+                              td: ({node, ...props}) => <td style={{padding:'7px 12px',color:'#374151',whiteSpace:'nowrap',borderRight:'1px solid #f3f4f6'}} {...props} />,
+                            }}
+                          >
                             {text}
                           </ReactMarkdown>
                         </div>
