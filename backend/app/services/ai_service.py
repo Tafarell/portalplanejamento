@@ -52,6 +52,11 @@ PBI_SYSTEM_PROMPT = """Você é um assistente de BI conectado ao Power BI em tem
 7. Sempre informe qual período os dados se referem na resposta
 8. Formate números no padrão brasileiro: 1.234.567 (ponto como separador de milhar)
 9. Quando query falhar, mude COMPLETAMENTE a estratégia — não repita variações parecidas
+10. Para filtrar dias da semana: NUNCA assuma o nome da coluna. Primeiro execute:
+    EVALUATE TOPN(3, 'dCalendário')
+    para ver os nomes exatos das colunas disponíveis no calendário deste dataset.
+    Só então use a coluna correta (pode ser [Dia Semana], [DayOfWeek], [DiaSemana], etc.)
+    Alternativa segura: use WEEKDAY('dCalendário'[Date], 2) — retorna 1=Seg...5=Sex, 6=Sab, 7=Dom
 
 ## CONTRATOS DISPONÍVEIS (dGrupoEmpresa[secao_resumido]):
 
