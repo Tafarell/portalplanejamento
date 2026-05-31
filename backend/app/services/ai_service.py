@@ -242,6 +242,7 @@ def chat_with_powerbi(
         )
         msg = response.choices[0].message
         if not msg.tool_calls:
+            print(f"[AI DEBUG] Resposta final: {repr((msg.content or '')[:200])}")
             return {"answer": msg.content or "", "pbi_queries": pbi_queries}
         # Converte para dict garantindo content nunca null (OpenRouter/Azure rejeita null)
         msg_dict = {
@@ -266,6 +267,7 @@ def chat_with_powerbi(
             pbi_queries.append(dax)
             result = execute_dax_query(dataset_id, dax, token, workspace_id)
             formatted = format_rows_for_llm(result)
+            print(f"[AI DEBUG] Tool result (primeiros 200 chars): {repr(formatted[:200])}")
             messages.append({
                 "role": "tool",
                 "tool_call_id": tool_call.id,
@@ -400,6 +402,7 @@ def chat_with_multi_powerbi(
         response = client.chat.completions.create(**kwargs)
         msg = response.choices[0].message
         if not msg.tool_calls:
+            print(f"[AI DEBUG] Resposta final: {repr((msg.content or '')[:200])}")
             return {"answer": msg.content or "", "pbi_queries": pbi_queries}
 
         msg_dict = {
